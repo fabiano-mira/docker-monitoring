@@ -1,0 +1,59 @@
+{
+  "uid": "ntopng-live-hosts",
+  "title": "ntopng - Live Hosts (Names)",
+  "tags": [
+    "netflow",
+    "ntopng",
+    "infinity"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "15s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Active Hosts",
+      "type": "table",
+      "gridPos": { "h": 18, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-ntopng" },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "is_localhost" }, "properties": [{ "id": "custom.cellOptions", "value": { "type": "color-background" } }] }
+        ]
+      },
+      "transformations": [
+        { "id": "organize", "options": { "excludeByName": { "key": true, "mac": true, "pool": true, "score": true, "vlan": true, "os": true } } }
+      ],
+      "targets": [
+        {
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-ntopng" },
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "http://ntopng:3000/lua/rest/v2/get/host/active.lua?ifid=0&perPage=200",
+          "url_options": { "method": "GET" },
+          "root_selector": "rsp.data",
+          "columns": [
+            { "selector": "name", "text": "Name", "type": "string" },
+            { "selector": "ip", "text": "IP", "type": "string" },
+            { "selector": "is_localhost", "text": "Local", "type": "boolean" },
+            { "selector": "country", "text": "Country", "type": "string" },
+            { "selector": "bytes.total", "text": "Bytes", "type": "number" },
+            { "selector": "bytes.sent", "text": "Bytes Sent", "type": "number" },
+            { "selector": "bytes.recvd", "text": "Bytes Recv", "type": "number" },
+            { "selector": "num_flows.total", "text": "Flows", "type": "number" },
+            { "selector": "thpt.bps", "text": "Throughput (bps)", "type": "number" },
+            { "selector": "last_seen", "text": "Last Seen", "type": "timestamp_epoch_s" }
+          ],
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "uid": "cc-netflow-analytics",
+  "title": "Control Center · Flow Analytics",
+  "tags": ["control-center", "netflow", "loki", "influxdb", "ntopng"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    { "id": 100, "type": "row", "title": "Network Pulse", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "panels": [] },
+    {
+      "id": 1, "title": "Active Hosts", "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "targets": [{ "query": "SELECT mean(\"num_hosts\") FROM \"iface:hosts\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" }]
+    },
+    {
+      "id": 2, "title": "Local Hosts", "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] },
+      "targets": [{ "query": "SELECT mean(\"num_hosts\") FROM \"iface:local_hosts\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" }]
+    },
+    {
+      "id": 3, "title": "Active Flows", "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "purple" } }, "overrides": [] },
+      "targets": [{ "query": "SELECT mean(\"num_flows\") FROM \"iface:flows\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" }]
+    },
+    {
+      "id": 4, "title": "New Flows/min", "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "orange" } }, "overrides": [] },
+      "targets": [{ "query": "SELECT mean(\"new_flows\") FROM \"iface:new_flows\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" }]
+    },
+
+    { "id": 101, "type": "row", "title": "Traffic Composition", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }, "panels": [] },
+    {
+      "id": 5, "title": "Bytes by Destination Port", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 7 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-netflow" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "bars", "fillOpacity": 70, "gradientMode": "hue", "stacking": { "mode": "normal" }, "barAlignment": 0 } }, "overrides": [] },
+      "targets": [{ "query": "from(bucket: \"netflow\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"netflow\" and r._field == \"bytes\") |> aggregateWindow(every: 30s, fn: sum, createEmpty: false) |> group(columns: [\"dst_port\"])", "refId": "A" }]
+    },
+    {
+      "id": 6, "title": "Protocol Share (flows)", "type": "piechart",
+      "gridPos": { "h": 9, "w": 6, "x": 12, "y": 7 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "pieType": "donut", "reduceOptions": { "calcs": ["sum"], "values": false }, "legend": { "displayMode": "list", "placement": "right" }, "displayLabels": ["percent"] },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [{ "expr": "sum by (proto) (count_over_time({job=\"goflow2\"}[$__range]))", "legendFormat": "{{proto}}", "refId": "A", "instant": true }]
+    },
+    {
+      "id": 7, "title": "Bytes by L4 Protocol (ntopng)", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 6, "x": 18, "y": 7 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "bars", "fillOpacity": 70, "gradientMode": "hue", "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "targets": [{ "query": "SELECT mean(\"bytes\") FROM \"iface:l4protos\" WHERE $timeFilter GROUP BY time($__interval), \"l4proto\" fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" }]
+    },
+
+    { "id": 102, "type": "row", "title": "Talkers", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 }, "panels": [] },
+    {
+      "id": 8, "title": "Top Source IPs (rate)", "type": "bargauge",
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 17 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "displayMode": "gradient", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "showUnfilled": true },
+      "fieldConfig": { "defaults": { "unit": "Bps", "color": { "mode": "continuous-BlPu" } }, "overrides": [] },
+      "targets": [{ "expr": "topk(10, sum by (src_addr) (rate({job=\"goflow2\"} | json | unwrap bytes [5m])))", "legendFormat": "{{src_addr}}", "refId": "A" }]
+    },
+    {
+      "id": 9, "title": "Bytes/s by Source IP", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 8, "x": 8, "y": 17 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 35, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "sum by (src_addr) (rate({job=\"goflow2\"} | json | unwrap bytes [1m]))", "legendFormat": "{{src_addr}}", "refId": "A" }]
+    },
+    {
+      "id": 10, "title": "Bytes/s by Destination IP (top 10)", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 17 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 35, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "topk(10, sum by (dst_addr) (rate({job=\"goflow2\"} | json | unwrap bytes [1m])))", "legendFormat": "{{dst_addr}}", "refId": "A" }]
+    },
+
+    { "id": 103, "type": "row", "title": "Destinations — ASN & Geography (ntopng)", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 }, "panels": [] },
+    {
+      "id": 11, "title": "Traffic by ASN", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 27 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 30, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        { "query": "SELECT mean(\"bytes_sent\") FROM \"asn:traffic\" WHERE $timeFilter GROUP BY time($__interval), \"asn\" fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" },
+        { "query": "SELECT mean(\"bytes_rcvd\") FROM \"asn:traffic\" WHERE $timeFilter GROUP BY time($__interval), \"asn\" fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "B" }
+      ]
+    },
+    {
+      "id": 12, "title": "Traffic by Country", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 27 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 30, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        { "query": "SELECT mean(\"bytes_ingress\") FROM \"country:traffic\" WHERE $timeFilter GROUP BY time($__interval), \"country\" fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" },
+        { "query": "SELECT mean(\"bytes_egress\") FROM \"country:traffic\" WHERE $timeFilter GROUP BY time($__interval), \"country\" fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "B" }
+      ]
+    },
+
+    { "id": 104, "type": "row", "title": "Paths & Health", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 }, "panels": [] },
+    {
+      "id": 13, "title": "Bytes/s by Interface Pair", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 37 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 1, "fillOpacity": 45, "gradientMode": "opacity", "showPoints": "never", "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "targets": [{ "expr": "sum by (in_if, out_if) (rate({job=\"goflow2\"} | json | unwrap bytes [1m]))", "legendFormat": "if{{in_if}} → if{{out_if}}", "refId": "A" }]
+    },
+    {
+      "id": 14, "title": "TCP Anomalies (ntopng)", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 8, "x": 8, "y": 37 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 30, "gradientMode": "hue", "showPoints": "never", "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "targets": [
+        { "query": "SELECT mean(\"retransmissions\") AS \"retransmissions\" FROM \"iface:tcp_stats\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" },
+        { "query": "SELECT mean(\"out_of_order\") AS \"out_of_order\" FROM \"iface:tcp_stats\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "B" },
+        { "query": "SELECT mean(\"lost\") AS \"lost\" FROM \"iface:tcp_stats\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "C" }
+      ]
+    },
+    {
+      "id": 15, "title": "Flow Score & Engine Load", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 37 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 25, "gradientMode": "hue", "showPoints": "never" } }, "overrides": [{ "matcher": { "id": "byName", "options": "ntopng cpu %" }, "properties": [{ "id": "unit", "value": "percent" }] }] },
+      "targets": [
+        { "query": "SELECT mean(\"score\") AS \"iface score\" FROM \"iface:score\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" },
+        { "query": "SELECT mean(\"load_percentage\") AS \"ntopng cpu %\" FROM \"system:cpu_load\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "B" }
+      ]
+    }
+  ]
+}
