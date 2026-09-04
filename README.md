@@ -139,16 +139,18 @@ docker compose up -d   # recreates everything from config files
 ```
 
 ### Configuring ntopng's Timeseries driver (InfluxDB)
-By default ntopng stores historical timeseries locally as RRD files. To use the dedicated `influxdb-ntopng` container instead:
-1. Open http://localhost:3001 → gear icon → **Preferences** → **Timeseries** tab
-2. Set **Timeseries Driver**: `InfluxDB 1.x`, **InfluxDB URL**: `http://influxdb-ntopng:8086`, **InfluxDB Database**: `ntopng`, authentication disabled
-3. Click **Save**
+By default ntopng stores historical timeseries locally as RRD files. This stack instead points it at the dedicated `influxdb-ntopng` container, via the web UI (Preferences → Timeseries): **Timeseries Driver**: `InfluxDB 1.x`, **InfluxDB URL**: `http://influxdb-ntopng:8086`, **InfluxDB Database**: `ntopng`, authentication disabled. Under the hood this sets two Redis keys read by `ts_utils_core.lua`/`influxdb.lua`:
+- `ntopng.prefs.timeseries_driver` = `influxdb`
+- `ntopng.prefs.ts_post_data_url` = `http://influxdb-ntopng:8086`
 
-This is a one-time manual step — ntopng's preferences live in `redis-ntopng` (not a file in this repo), so it isn't provisioned automatically like Grafana's dashboards. Verify with:
+These preferences live in `redis-ntopng` (not a file in this repo), so they aren't provisioned automatically like Grafana's dashboards and must be re-applied if the `redis-ntopng` volume is ever wiped. ntopng caches its active timeseries driver in memory, so a container restart (`docker restart ntopng`) is needed after changing it for the change to take effect.
+
+Verify ingestion with:
 ```zsh
 docker exec influxdb-ntopng influx -database ntopng -execute "SHOW MEASUREMENTS"
+docker exec influxdb-ntopng influx -database ntopng -execute 'SELECT * FROM "iface:local_hosts" ORDER BY time DESC LIMIT 3'
 ```
-As of the last check, this had **not yet been completed** — `ntopng.prefs.timeseries_driver` in `redis-ntopng` was still `rrd`, so no data has been written to `influxdb-ntopng` yet.
+Confirmed working: ntopng auto-created its retention policies/continuous queries on first save ("InfluxDB CQ migration completed"), `influxdb-ntopng` logs show `POST /write` returning `204`, and measurements such as `iface:local_hosts`, `iface:hosts`, `iface:flows`, `asn:*`, `country:*`, and `system:cpu_load` contain real data points.
 
 ### Rebuilding Grafana from scratch (disaster recovery test)
 ```zsh
