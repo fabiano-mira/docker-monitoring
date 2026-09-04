@@ -14,8 +14,9 @@ flowchart LR
   end
 
   Router["UniFi Dream Router<br/>10.9.1.1"] -- "SNMP v2c" --> Netdata
-  Router -- "NetFlow/IPFIX :2055" --> goflow2
-  Router -- "NetFlow/IPFIX :2056" --> netflow2ng
+  Router -- "NetFlow/IPFIX :2057" --> Relay["netflow-relay.py<br/>(native, LaunchAgent)"]
+  Relay -- ":2055" --> goflow2
+  Relay -- ":2056" --> netflow2ng
   SNMPExp["snmp_exporter :9116"] -- "SNMP v2c poll" --> Router
 
   subgraph Docker["Docker Compose stack"]
@@ -63,16 +64,18 @@ flowchart LR
 | `redis-ntopng` | `redis:alpine` | — | Dedicated Redis instance for ntopng's cache/preferences |
 | `influxdb-ntopng` | `influxdb:1.8` | 8087 | Dedicated InfluxDB 1.x instance for ntopng's Timeseries driver (db: `ntopng`). ntopng only supports InfluxDB 1.x, so it cannot share the v2 `influxdb` container above |
 
-Two components run natively on the host (not in Docker), since they need direct macOS/network access:
+Three components run natively on the host (not in Docker), since they need direct macOS/network access:
 - **Netdata** (Homebrew, `/opt/homebrew/etc/netdata/`) — real host metrics (CPU, RAM, disk, GPU, battery) plus the `go.d/snmp` collector polling the router.
-- **goflow2** (`~/bin/goflow2`, managed via LaunchAgent `~/Library/LaunchAgents/com.netsampler.goflow2.plist`) — receives NetFlow/IPFIX from the router on UDP `2055`, writes JSON records to `~/Library/Logs/goflow2/flows.log`, and exposes internal Prometheus metrics on `:8080`.
+- **goflow2** (`~/bin/goflow2`, managed via LaunchAgent `~/Library/LaunchAgents/com.netsampler.goflow2.plist`) — receives NetFlow/IPFIX on UDP `2055`, writes JSON records to `~/Library/Logs/goflow2/flows.log`, and exposes internal Prometheus metrics on `:8080`.
+- **netflow-relay.py** (`scripts/netflow-relay.py`, managed via LaunchAgent `~/Library/LaunchAgents/com.netmon.netflow-relay.plist`) — receives the router's single NetFlow export on UDP `2057` and duplicates each packet to both goflow2 (`2055`) and netflow2ng (`2056`), since the router only supports one export target but two collectors need the data.
 
 ## Prerequisites
 
 - Docker Desktop (context `desktop-linux`)
 - Homebrew, with `netdata` installed and running (`brew services start netdata`)
 - `goflow2` binary running as a LaunchAgent, listening on UDP `2055`
-- Router configured to export SNMP (v2c, community `public`) and NetFlow/IPFIX to this Mac's LAN IP on port `2055`
+- `scripts/netflow-relay.py` running as a LaunchAgent, listening on UDP `2057`
+- Router configured to export SNMP (v2c, community `public`) and NetFlow/IPFIX to this Mac's LAN IP on port `2057` (the relay, not directly to goflow2 or netflow2ng)
 
 ## Deployment
 
@@ -98,9 +101,10 @@ Access points:
 | `prometheus/prometheus.yml` | Scrape jobs: `node_exporter`, `prometheus`, `netdata`, `netdata_snmp_gateway`, `snmp_exporter_gateway` |
 | `promtail/promtail-config.yml` | Tails `flows.log`, extracts `type`/`proto` as labels and other fields (`src_addr`, `dst_addr`, ports, `in_if`/`out_if`) as parsed fields for LogQL |
 | `telegraf/telegraf.conf` | Tails `flows.log` (poll mode — required for Docker Desktop bind mounts), writes tagged points to InfluxDB |
-| `grafana/provisioning/datasources/datasources.yml` | Prometheus, Loki, InfluxDB data source definitions (fixed UIDs, referenced by dashboard JSON) |
+| `grafana/provisioning/datasources/datasources.yml` | Prometheus, Loki, InfluxDB (netflow, v2/Flux), InfluxDB (ntopng, v1/InfluxQL) data source definitions (fixed UIDs, referenced by dashboard JSON) |
 | `grafana/provisioning/dashboards/dashboards.yml` | Points Grafana at `grafana/dashboards/` for auto-loading |
-| `grafana/dashboards/*.json` | The 7 dashboards (source of truth — edit these, not via UI, for changes to survive a volume wipe) |
+| `grafana/dashboards/*.json` | The 8 dashboards (source of truth — edit these, not via UI, for changes to survive a volume wipe) |
+| `scripts/netflow-relay.py` | UDP fan-out relay (LaunchAgent `com.netmon.netflow-relay.plist`) duplicating the router's single NetFlow export to both goflow2 and netflow2ng |
 
 ### Dashboards
 
@@ -112,7 +116,8 @@ Access points:
 | SNMP Exporter - Gateway | Prometheus | Standard IF-MIB metrics (`ifOperStatus`, `ifHCInOctets`, etc.) via `snmp_exporter` |
 | NetFlow/IPFIX Live (Router) | Prometheus | Aggregate goflow2 counters re-exposed via Netdata's prometheus proxy |
 | NetFlow Rich Detail | Loki | Per-flow LogQL time series grouped by port/IP/interface + raw log stream |
-| NetFlow (InfluxDB) | InfluxDB | Proper time-series panels (bars/lines) grouped by port/IP/interface, backed by real point storage |
+| NetFlow (InfluxDB) | InfluxDB (netflow, v2/Flux) | Proper time-series panels (bars/lines) grouped by port/IP/interface, backed by real point storage |
+| ntopng - Flows, Hosts & Traffic (InfluxDB) | InfluxDB (ntopng, v1/InfluxQL) | Active/local host counts, active/new flows, bytes by L4 protocol, ASN, and country, TCP anomalies, ntopng CPU load |
 
 ## Maintenance
 
@@ -150,7 +155,7 @@ Verify ingestion with:
 docker exec influxdb-ntopng influx -database ntopng -execute "SHOW MEASUREMENTS"
 docker exec influxdb-ntopng influx -database ntopng -execute 'SELECT * FROM "iface:local_hosts" ORDER BY time DESC LIMIT 3'
 ```
-Confirmed working: ntopng auto-created its retention policies/continuous queries on first save ("InfluxDB CQ migration completed"), `influxdb-ntopng` logs show `POST /write` returning `204`, and measurements such as `iface:local_hosts`, `iface:hosts`, `iface:flows`, `asn:*`, `country:*`, and `system:cpu_load` contain real data points.
+Confirmed working: ntopng auto-created its retention policies/continuous queries on first save ("InfluxDB CQ migration completed"), `influxdb-ntopng` logs show `POST /write` returning `204`, and measurements such as `iface:local_hosts`, `iface:hosts`, `iface:flows`, `asn:*`, `country:*`, and `system:cpu_load` contain real data points. This is now visualized in Grafana via the "ntopng - Flows, Hosts & Traffic (InfluxDB)" dashboard, backed by the `InfluxDB-ntopng` datasource (InfluxQL mode, `grafana/provisioning/datasources/datasources.yml`).
 
 ### Rebuilding Grafana from scratch (disaster recovery test)
 ```zsh
@@ -177,3 +182,5 @@ git add -A && git commit -m "describe the change"
 - **ntopng's `--local-networks` only affects host classification** (local vs. remote), not which flows are received. If the router isn't exporting NetFlow for a given VLAN/subnet to netflow2ng's port, adding that subnet to `--local-networks` won't make its traffic appear.
 - **ntopng preferences (Timeseries driver, local networks changes made via UI, etc.) live in `redis-ntopng`**, not in a file under this repo, so they are not version-controlled and won't survive `docker volume rm` on `redis-ntopng`'s data unless re-applied manually.
 - **`--disable-login` requires an explicit mode argument (`0` or `1`)** in the `ntopng` command list in `docker-compose.yml`. Omitting it causes ntopng's argument parser to consume the *next* list item as the mode value instead — e.g. it previously swallowed `--local-networks` itself, silently discarding local-network classification (symptom: "No local hosts detected" despite active traffic) and leaving login enabled. Always keep `"1"` as its own list entry immediately after `"--disable-login"`.
+- **The UniFi router's NetFlow exporter only supports a single destination IP:port.** With both goflow2 (`2055`) and netflow2ng (`2056`) needing the same flow data, the router is instead pointed at `scripts/netflow-relay.py` (port `2057`), which duplicates every datagram to both. If flows stop reaching one or both pipelines, check `launchctl list | grep netflow-relay` and the logs in `~/Library/Logs/netflow-relay/`.
+- **The ntopng InfluxDB datasource uses InfluxQL (v1.x), not Flux** — unlike the main `InfluxDB-NetFlow` datasource. Dashboard panel queries use the classic `{"query": "SELECT ...", "rawQuery": true}` target format, not Flux syntax.

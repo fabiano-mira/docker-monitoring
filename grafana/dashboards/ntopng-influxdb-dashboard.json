@@ -1,0 +1,115 @@
+{
+  "uid": "ntopng-influxdb",
+  "title": "ntopng - Flows, Hosts & Traffic (InfluxDB)",
+  "tags": [
+    "netflow",
+    "ntopng",
+    "influxdb",
+    "netflow2ng"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 500,
+      "type": "row",
+      "title": "Hosts & Flows",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "title": "Active Hosts (Total vs Local)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 1 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "query": "SELECT mean(\"num_hosts\") AS \"total_hosts\" FROM \"iface:hosts\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" },
+        { "query": "SELECT mean(\"num_hosts\") AS \"local_hosts\" FROM \"iface:local_hosts\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "B" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Flows (Active vs New)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 1 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "query": "SELECT mean(\"num_flows\") AS \"active_flows\" FROM \"iface:flows\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" },
+        { "query": "SELECT mean(\"new_flows\") AS \"new_flows\" FROM \"iface:new_flows\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "B" }
+      ]
+    },
+
+    { "id": 501, "type": "row", "title": "Traffic Breakdown", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 10 }, "panels": [] },
+    {
+      "id": 3,
+      "title": "Bytes by L4 Protocol",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 11 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 20, "stacking": { "mode": "normal" }, "drawStyle": "bars" } }, "overrides": [] },
+      "targets": [
+        { "query": "SELECT mean(\"bytes\") FROM \"iface:l4protos\" WHERE $timeFilter GROUP BY time($__interval), \"l4proto\" fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Bytes Sent/Received by ASN",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 20 } }, "overrides": [] },
+      "targets": [
+        { "query": "SELECT mean(\"bytes_sent\") FROM \"asn:traffic\" WHERE $timeFilter GROUP BY time($__interval), \"asn\" fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" },
+        { "query": "SELECT mean(\"bytes_rcvd\") FROM \"asn:traffic\" WHERE $timeFilter GROUP BY time($__interval), \"asn\" fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "B" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Bytes Ingress/Egress by Country",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 20 } }, "overrides": [] },
+      "targets": [
+        { "query": "SELECT mean(\"bytes_ingress\") FROM \"country:traffic\" WHERE $timeFilter GROUP BY time($__interval), \"country\" fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" },
+        { "query": "SELECT mean(\"bytes_egress\") FROM \"country:traffic\" WHERE $timeFilter GROUP BY time($__interval), \"country\" fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "B" }
+      ]
+    },
+
+    { "id": 502, "type": "row", "title": "Interface Health", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 }, "panels": [] },
+    {
+      "id": 6,
+      "title": "TCP Anomalies",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 30 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 20, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "targets": [
+        { "query": "SELECT mean(\"retransmissions\") AS \"retransmissions\" FROM \"iface:tcp_stats\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" },
+        { "query": "SELECT mean(\"out_of_order\") AS \"out_of_order\" FROM \"iface:tcp_stats\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "B" },
+        { "query": "SELECT mean(\"lost\") AS \"lost\" FROM \"iface:tcp_stats\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "C" },
+        { "query": "SELECT mean(\"keep_alive\") AS \"keep_alive\" FROM \"iface:tcp_stats\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "D" }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "ntopng Process CPU Load",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 30 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-ntopng" },
+      "fieldConfig": { "defaults": { "unit": "percent", "max": 100, "min": 0, "custom": { "fillOpacity": 20 } }, "overrides": [] },
+      "targets": [
+        { "query": "SELECT mean(\"load_percentage\") FROM \"system:cpu_load\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "resultFormat": "time_series", "refId": "A" }
+      ]
+    }
+  ]
+}

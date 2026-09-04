@@ -29,3 +29,15 @@ datasources:
     secureJsonData:
       token: netmon-local-dev-token-2026
     editable: true
+
+  - name: InfluxDB-ntopng
+    uid: influxdb-ntopng
+    type: influxdb
+    access: proxy
+    url: http://influxdb-ntopng:8086
+    database: ntopng
+    jsonData:
+      version: InfluxQL
+      httpMode: GET
+      dbName: ntopng
+    editable: true
