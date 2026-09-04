@@ -115,6 +115,7 @@ Access points:
 | `grafana/dashboards/*.json` | The 13 dashboards: 4 "Control Center" dashboards (primary) plus the 9 original single-source dashboards kept as legacy/backup (source of truth — edit these, not via UI, for changes to survive a volume wipe) |
 | `scripts/netflow-relay.py` | UDP fan-out relay (LaunchAgent `com.netmon.netflow-relay.plist`) duplicating the router's single NetFlow export to both goflow2 and netflow2ng |
 | `launchagents/com.netmon.netflow-relay.plist` | Version-controlled copy of the relay's LaunchAgent definition — copy to `~/Library/LaunchAgents/` and `launchctl load` it (see Deployment) |
+| `check-health.sh` | Post-reboot verification: containers, LaunchAgents, UDP listeners, HTTP endpoints, Prometheus targets, Grafana datasources, data freshness. Exit 0 = all healthy |
 
 ### Dashboards
 
@@ -164,6 +165,13 @@ Add a job to `/opt/homebrew/etc/netdata/go.d/snmp.conf` (native Netdata) and/or 
 docker compose down    # removes containers, keeps named volumes
 docker compose up -d   # recreates everything from config files
 ```
+
+### Verifying the stack after a reboot
+Everything is configured to auto-start (containers via `restart: unless-stopped` once Docker Desktop launches; goflow2/netflow-relay via LaunchAgent `RunAtLoad`; Netdata via `brew services`). To verify all 30+ checks in one shot:
+```zsh
+./check-health.sh
+```
+It validates the Docker daemon and all 12 containers, the three native components, UDP listeners (2055/2057), every HTTP endpoint, Prometheus scrape targets, Grafana datasource health, and end-to-end data freshness in both NetFlow pipelines. Exits non-zero if anything fails, with a fix-hint per failed check.
 
 ### Configuring ntopng's Timeseries driver (InfluxDB)
 By default ntopng stores historical timeseries locally as RRD files. This stack instead points it at the dedicated `influxdb-ntopng` container, via the web UI (Preferences → Timeseries): **Timeseries Driver**: `InfluxDB 1.x`, **InfluxDB URL**: `http://influxdb-ntopng:8086`, **InfluxDB Database**: `ntopng`, authentication disabled. Under the hood this sets two Redis keys read by `ts_utils_core.lua`/`influxdb.lua`:
