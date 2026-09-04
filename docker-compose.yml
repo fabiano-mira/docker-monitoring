@@ -83,6 +83,66 @@ services:
     networks:
       - monitoring
 
+  redis-ntopng:
+    image: redis:alpine
+    container_name: redis-ntopng
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  influxdb-ntopng:
+    image: influxdb:1.8
+    container_name: influxdb-ntopng
+    restart: unless-stopped
+    environment:
+      - INFLUXDB_DB=ntopng
+    volumes:
+      - influxdb_ntopng_data:/var/lib/influxdb
+    ports:
+      - "8087:8086"
+    networks:
+      - monitoring
+
+  netflow2ng:
+    image: synfinatic/netflow2ng:latest
+    container_name: netflow2ng
+    restart: unless-stopped
+    command:
+      - "--listen=0.0.0.0:2055"
+      - "--listen-zmq=tcp://*:5556"
+      - "--metrics=0.0.0.0:8080"
+    ports:
+      - "2056:2055/udp"
+      - "8091:8080"
+    networks:
+      - monitoring
+
+  ntopng:
+    image: ntop/ntopng:latest
+    container_name: ntopng
+    restart: unless-stopped
+    command:
+      - "--community"
+      - "--redis"
+      - "redis-ntopng"
+      - "--interface"
+      - "tcp://netflow2ng:5556"
+      - "--disable-login"
+      - "1"
+      - "--local-networks"
+      - "10.9.1.0/24,192.168.3.0/24"
+      - "--insecure"
+    volumes:
+      - ntopng_data:/var/lib/ntopng
+    ports:
+      - "3001:3000"
+    depends_on:
+      - netflow2ng
+      - redis-ntopng
+      - influxdb-ntopng
+    networks:
+      - monitoring
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -125,3 +185,5 @@ volumes:
   grafana_data:
   loki_data:
   influxdb_data:
+  influxdb_ntopng_data:
+  ntopng_data:

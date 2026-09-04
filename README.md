@@ -1,9 +1,9 @@
 # docker-monitoring
 
-A local observability stack for macOS host metrics, a UniFi Dream Router (SNMP + NetFlow/IPFIX), and general infrastructure monitoring — built on Prometheus, Grafana, Loki, and InfluxDB.
+A local observability stack for macOS host metrics, a UniFi Dream Router (SNMP + NetFlow/IPFIX), and general infrastructure monitoring — built on Prometheus, Grafana, Loki, InfluxDB, and ntopng.
 
 ## Architecture
-
+There are currently two parallel NetFlow collection paths: the original goflow2 → Loki/InfluxDB(v2) pipeline (per-flow log records, queried via LogQL/InfluxQL) and a newer netflow2ng → ntopng pipeline (live ZMQ flow stream, browsable traffic dashboard with its own historical timeseries store). Both can run side by side since the router can export NetFlow to multiple collector ports.
 ```mermaid
 flowchart LR
   subgraph Host["macOS Host (native)"]
@@ -15,6 +15,7 @@ flowchart LR
 
   Router["UniFi Dream Router<br/>10.9.1.1"] -- "SNMP v2c" --> Netdata
   Router -- "NetFlow/IPFIX :2055" --> goflow2
+  Router -- "NetFlow/IPFIX :2056" --> netflow2ng
   SNMPExp["snmp_exporter :9116"] -- "SNMP v2c poll" --> Router
 
   subgraph Docker["Docker Compose stack"]
@@ -22,9 +23,13 @@ flowchart LR
     Grafana["Grafana :3000"]
     Loki["Loki :3100"]
     Promtail["Promtail"]
-    InfluxDB["InfluxDB :8086"]
+    InfluxDB["InfluxDB (v2) :8086<br/>bucket: netflow"]
     Telegraf["Telegraf"]
     NodeExp["node_exporter :9100"]
+    netflow2ng["netflow2ng :2056/:8091"]
+    ntopng["ntopng :3001"]
+    RedisNtopng["redis-ntopng"]
+    InfluxNtopng["InfluxDB (v1.8) :8087<br/>db: ntopng"]
   end
 
   Netdata -- "scrape /allmetrics" --> Prometheus
@@ -32,6 +37,9 @@ flowchart LR
   NodeExp -- "scrape" --> Prometheus
   FlowLog -- "tail" --> Promtail --> Loki
   FlowLog -- "tail (poll)" --> Telegraf --> InfluxDB
+  netflow2ng -- "ZMQ tcp://5556" --> ntopng
+  ntopng --> RedisNtopng
+  ntopng -- "timeseries write" --> InfluxNtopng
 
   Prometheus --> Grafana
   Loki --> Grafana
@@ -50,6 +58,10 @@ flowchart LR
 | `promtail` | `grafana/promtail` | 9080 | Tails `flows.log`, ships to Loki |
 | `influxdb` | `influxdb:2` | 8086 | Time-series store for per-flow records (bucket `netflow`, org `netmon`) |
 | `telegraf` | `telegraf` | — | Tails `flows.log`, parses JSON, writes points to InfluxDB |
+| `netflow2ng` | `synfinatic/netflow2ng` | 2056 (udp), 8091 | Receives NetFlow/IPFIX, republishes flows to ntopng over ZMQ |
+| `ntopng` | `ntop/ntopng` | 3001 | Live traffic dashboard fed by netflow2ng; local networks: `10.9.1.0/24,192.168.3.0/24` |
+| `redis-ntopng` | `redis:alpine` | — | Dedicated Redis instance for ntopng's cache/preferences |
+| `influxdb-ntopng` | `influxdb:1.8` | 8087 | Dedicated InfluxDB 1.x instance for ntopng's Timeseries driver (db: `ntopng`). ntopng only supports InfluxDB 1.x, so it cannot share the v2 `influxdb` container above |
 
 Two components run natively on the host (not in Docker), since they need direct macOS/network access:
 - **Netdata** (Homebrew, `/opt/homebrew/etc/netdata/`) — real host metrics (CPU, RAM, disk, GPU, battery) plus the `go.d/snmp` collector polling the router.
@@ -76,6 +88,7 @@ Access points:
 - Prometheus: http://localhost:9090
 - InfluxDB UI: http://localhost:8086
 - Netdata: http://localhost:19999
+- ntopng: http://localhost:3001 (login disabled)
 
 ## Configuration reference
 
@@ -125,6 +138,18 @@ docker compose down    # removes containers, keeps named volumes
 docker compose up -d   # recreates everything from config files
 ```
 
+### Configuring ntopng's Timeseries driver (InfluxDB)
+By default ntopng stores historical timeseries locally as RRD files. To use the dedicated `influxdb-ntopng` container instead:
+1. Open http://localhost:3001 → gear icon → **Preferences** → **Timeseries** tab
+2. Set **Timeseries Driver**: `InfluxDB 1.x`, **InfluxDB URL**: `http://influxdb-ntopng:8086`, **InfluxDB Database**: `ntopng`, authentication disabled
+3. Click **Save**
+
+This is a one-time manual step — ntopng's preferences live in `redis-ntopng` (not a file in this repo), so it isn't provisioned automatically like Grafana's dashboards. Verify with:
+```zsh
+docker exec influxdb-ntopng influx -database ntopng -execute "SHOW MEASUREMENTS"
+```
+As of the last check, this had **not yet been completed** — `ntopng.prefs.timeseries_driver` in `redis-ntopng` was still `rrd`, so no data has been written to `influxdb-ntopng` yet.
+
 ### Rebuilding Grafana from scratch (disaster recovery test)
 ```zsh
 docker compose stop grafana
@@ -146,3 +171,7 @@ git add -A && git commit -m "describe the change"
 - **ICMP ping sub-checks fail** in Netdata's SNMP collector logs (`operation not permitted`) — macOS restricts raw ICMP sockets for unprivileged processes. This only disables the optional ping-latency chart; SNMP metric collection is unaffected.
 - **goflow2 counters reset on process restart** (LaunchAgent `KeepAlive` will restart it on crash). If flow dashboards suddenly go empty, check `~/Library/Logs/goflow2/stderr.log` and confirm the router is still sending flows to this Mac's current LAN IP (it can change on DHCP renewal).
 - **Telegraf requires `watch_method = "poll"`** for the `inputs.tail` plugin — inotify events don't reliably cross the Docker Desktop macOS bind-mount bridge.
+- **ntopng only supports InfluxDB 1.x**, not the 2.x API used by the main `influxdb` container. A separate `influxdb-ntopng` (1.8) container exists solely for ntopng's timeseries data — don't point ntopng at the v2 `influxdb` container directly.
+- **ntopng's `--local-networks` only affects host classification** (local vs. remote), not which flows are received. If the router isn't exporting NetFlow for a given VLAN/subnet to netflow2ng's port, adding that subnet to `--local-networks` won't make its traffic appear.
+- **ntopng preferences (Timeseries driver, local networks changes made via UI, etc.) live in `redis-ntopng`**, not in a file under this repo, so they are not version-controlled and won't survive `docker volume rm` on `redis-ntopng`'s data unless re-applied manually.
+- **`--disable-login` requires an explicit mode argument (`0` or `1`)** in the `ntopng` command list in `docker-compose.yml`. Omitting it causes ntopng's argument parser to consume the *next* list item as the mode value instead — e.g. it previously swallowed `--local-networks` itself, silently discarding local-network classification (symptom: "No local hosts detected" despite active traffic) and leaving login enabled. Always keep `"1"` as its own list entry immediately after `"--disable-login"`.
