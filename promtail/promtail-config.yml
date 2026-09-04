@@ -1,0 +1,35 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: goflow2
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: goflow2
+          __path__: /var/log/goflow2/flows.log
+    pipeline_stages:
+      - json:
+          expressions:
+            type: type
+            proto: proto
+            src_addr: src_addr
+            dst_addr: dst_addr
+            src_port: src_port
+            dst_port: dst_port
+            in_if: in_if
+            out_if: out_if
+            bytes: bytes
+            packets: packets
+            sampler_address: sampler_address
+      - labels:
+          type:
+          proto:

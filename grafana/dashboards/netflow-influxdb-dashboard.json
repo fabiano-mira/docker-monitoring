@@ -1,0 +1,265 @@
+{
+  "uid": "netflow-influxdb",
+  "title": "NetFlow (InfluxDB) - Timeseries by IP/Port/Interface",
+  "tags": [
+    "netflow",
+    "influxdb",
+    "goflow2",
+    "telegraf"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 500,
+      "type": "row",
+      "title": "Traffic by Port",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "title": "Bytes by Destination Port (30s buckets)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-netflow"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "fillOpacity": 20,
+            "stacking": {
+              "mode": "normal"
+            },
+            "drawStyle": "bars"
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "query": "from(bucket: \"netflow\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"netflow\" and r._field == \"bytes\") |> aggregateWindow(every: 30s, fn: sum, createEmpty: false) |> group(columns: [\"dst_port\"])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 501,
+      "type": "row",
+      "title": "Traffic by IP",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "title": "Bytes/s by Source IP",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-netflow"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "fillOpacity": 20
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "query": "from(bucket: \"netflow\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"netflow\" and r._field == \"bytes\") |> aggregateWindow(every: 30s, fn: sum, createEmpty: false) |> map(fn: (r) => ({r with _value: float(v: r._value) / 30.0})) |> group(columns: [\"src_addr\"])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Bytes/s by Destination IP",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-netflow"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "fillOpacity": 20
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "query": "from(bucket: \"netflow\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"netflow\" and r._field == \"bytes\") |> aggregateWindow(every: 30s, fn: sum, createEmpty: false) |> map(fn: (r) => ({r with _value: float(v: r._value) / 30.0})) |> group(columns: [\"dst_addr\"])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 502,
+      "type": "row",
+      "title": "Traffic by Interface",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "panels": []
+    },
+    {
+      "id": 4,
+      "title": "Bytes/s by Interface Pair (in_if -> out_if)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 21
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-netflow"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "fillOpacity": 20,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "query": "from(bucket: \"netflow\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"netflow\" and r._field == \"bytes\") |> aggregateWindow(every: 30s, fn: sum, createEmpty: false) |> map(fn: (r) => ({r with _value: float(v: r._value) / 30.0})) |> group(columns: [\"in_if\", \"out_if\"])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Packets/s by Interface Pair",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 21
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-netflow"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pps",
+          "custom": {
+            "fillOpacity": 20,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "query": "from(bucket: \"netflow\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"netflow\" and r._field == \"packets\") |> aggregateWindow(every: 30s, fn: sum, createEmpty: false) |> map(fn: (r) => ({r with _value: float(v: r._value) / 30.0})) |> group(columns: [\"in_if\", \"out_if\"])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 503,
+      "type": "row",
+      "title": "Protocol Breakdown",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "panels": []
+    },
+    {
+      "id": 6,
+      "title": "Flows/s by Protocol",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-netflow"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 30,
+            "stacking": {
+              "mode": "normal"
+            },
+            "drawStyle": "bars"
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "query": "from(bucket: \"netflow\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"netflow\" and r._field == \"bytes\") |> aggregateWindow(every: 30s, fn: count, createEmpty: false) |> group(columns: [\"proto\"])",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

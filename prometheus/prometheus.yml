@@ -1,0 +1,41 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['node_exporter:9100']
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'netdata'
+    metrics_path: '/api/v1/allmetrics'
+    params:
+      format: ['prometheus']
+    static_configs:
+      - targets: ['host.docker.internal:19999']
+
+  - job_name: 'netdata_snmp_gateway'
+    metrics_path: '/host/Dream-Router-7/api/v1/allmetrics'
+    params:
+      format: ['prometheus']
+    static_configs:
+      - targets: ['host.docker.internal:19999']
+
+  - job_name: 'snmp_exporter_gateway'
+    metrics_path: /snmp
+    params:
+      module: [if_mib]
+      auth: [public_v2]
+    static_configs:
+      - targets:
+          - 10.9.1.1
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: snmp_exporter:9116

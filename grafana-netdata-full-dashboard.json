@@ -1,0 +1,135 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "netdata-full",
+    "title": "Netdata Full (macOS Host)",
+    "tags": ["netdata", "host", "macos"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "refresh": "10s",
+    "time": { "from": "now-1h", "to": "now" },
+    "panels": [
+      { "id": 100, "type": "row", "title": "Quick Overview", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "panels": [] },
+      {
+        "id": 1, "title": "Uptime", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+        "targets": [{ "expr": "netdata_system_uptime_seconds_average{job=\"netdata\"}", "legendFormat": "uptime", "refId": "A" }]
+      },
+      {
+        "id": 2, "title": "Load (1m)", "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "short", "decimals": 2 }, "overrides": [] },
+        "targets": [{ "expr": "netdata_system_load_load_average{job=\"netdata\",dimension=\"load1\"}", "legendFormat": "load1", "refId": "A" }]
+      },
+      {
+        "id": 3, "title": "CPU Busy %", "type": "gauge",
+        "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+        "targets": [{ "expr": "100 - netdata_system_cpu_percentage_average{job=\"netdata\",dimension=\"idle\"}", "legendFormat": "cpu busy", "refId": "A" }]
+      },
+      {
+        "id": 4, "title": "RAM Used %", "type": "gauge",
+        "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+        "targets": [{ "expr": "(sum(netdata_system_ram_MiB_average{job=\"netdata\",dimension=~\"active|wired|compressor\"}) / sum(netdata_system_ram_MiB_average{job=\"netdata\"})) * 100", "legendFormat": "ram used", "refId": "A" }]
+      },
+      {
+        "id": 5, "title": "Root Disk Used %", "type": "gauge",
+        "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+        "targets": [{ "expr": "(sum(netdata_disk_space_GiB_average{job=\"netdata\",mount_point=\"/\",dimension=\"used\"}) / (sum(netdata_disk_space_GiB_average{job=\"netdata\",mount_point=\"/\",dimension=\"used\"}) + sum(netdata_disk_space_GiB_average{job=\"netdata\",mount_point=\"/\",dimension=\"avail\"}))) * 100", "legendFormat": "root used", "refId": "A" }]
+      },
+      {
+        "id": 6, "title": "Battery %", "type": "gauge",
+        "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "yellow", "value": 20 }, { "color": "green", "value": 50 } ] } }, "overrides": [] },
+        "targets": [{ "expr": "netdata_powersupply_capacity_percentage_average{job=\"netdata\"}", "legendFormat": "battery", "refId": "A" }]
+      },
+
+      { "id": 101, "type": "row", "title": "CPU", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }, "panels": [] },
+      {
+        "id": 7, "title": "CPU Usage by dimension (%)", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "custom": { "stacking": { "mode": "normal" }, "fillOpacity": 30 } }, "overrides": [] },
+        "targets": [{ "expr": "netdata_system_cpu_percentage_average{job=\"netdata\"}", "legendFormat": "{{dimension}}", "refId": "A" }]
+      },
+
+      { "id": 102, "type": "row", "title": "Memory & Swap", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }, "panels": [] },
+      {
+        "id": 8, "title": "RAM by dimension (MiB)", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "decmbytes", "custom": { "stacking": { "mode": "normal" }, "fillOpacity": 20 } }, "overrides": [] },
+        "targets": [{ "expr": "netdata_system_ram_MiB_average{job=\"netdata\"}", "legendFormat": "{{dimension}}", "refId": "A" }]
+      },
+      {
+        "id": 9, "title": "Swap by dimension (MiB)", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "decmbytes", "custom": { "fillOpacity": 20 } }, "overrides": [] },
+        "targets": [{ "expr": "netdata_mem_swap_MiB_average{job=\"netdata\"}", "legendFormat": "{{dimension}}", "refId": "A" }]
+      },
+
+      { "id": 103, "type": "row", "title": "Disk", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 }, "panels": [] },
+      {
+        "id": 10, "title": "Disk Space by mount point (GiB)", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "decgbytes", "custom": { "fillOpacity": 20 } }, "overrides": [] },
+        "targets": [{ "expr": "netdata_disk_space_GiB_average{job=\"netdata\",dimension=~\"used|avail\"}", "legendFormat": "{{mount_point}} - {{dimension}}", "refId": "A" }]
+      },
+      {
+        "id": 11, "title": "Disk I/O by device (KiB/s)", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 20 } }, "overrides": [] },
+        "targets": [{ "expr": "netdata_disk_io_KiB_persec_average{job=\"netdata\"}", "legendFormat": "{{device}} - {{dimension}}", "refId": "A" }]
+      },
+
+      { "id": 104, "type": "row", "title": "Network", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 }, "panels": [] },
+      {
+        "id": 12, "title": "Network Traffic - en0 (kilobits/s)", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 20 } }, "overrides": [] },
+        "targets": [{ "expr": "netdata_net_net_kilobits_persec_average{job=\"netdata\",device=\"en0\"}", "legendFormat": "{{dimension}}", "refId": "A" }]
+      },
+      {
+        "id": 13, "title": "IPv4 TCP Packets (persec)", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 20 } }, "overrides": [] },
+        "targets": [{ "expr": "netdata_ipv4_tcppackets_packets_persec_average{job=\"netdata\"}", "legendFormat": "{{dimension}}", "refId": "A" }]
+      },
+
+      { "id": 105, "type": "row", "title": "macOS Extras", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 }, "panels": [] },
+      {
+        "id": 14, "title": "GPU Utilization (%)", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 42 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "fillOpacity": 20 } }, "overrides": [] },
+        "targets": [{ "expr": "netdata_macos_gpu_utilization_percentage_average{job=\"netdata\"}", "legendFormat": "GPU", "refId": "A" }]
+      },
+      {
+        "id": 15, "title": "Battery Capacity (%)", "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 42 },
+        "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+        "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "fillOpacity": 20 } }, "overrides": [] },
+        "targets": [{ "expr": "netdata_powersupply_capacity_percentage_average{job=\"netdata\"}", "legendFormat": "battery", "refId": "A" }]
+      }
+    ]
+  },
+  "overwrite": true
+}
