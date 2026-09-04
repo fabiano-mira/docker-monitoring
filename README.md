@@ -101,9 +101,9 @@ Access points:
 | `prometheus/prometheus.yml` | Scrape jobs: `node_exporter`, `prometheus`, `netdata`, `netdata_snmp_gateway`, `snmp_exporter_gateway` |
 | `promtail/promtail-config.yml` | Tails `flows.log`, extracts `type`/`proto` as labels and other fields (`src_addr`, `dst_addr`, ports, `in_if`/`out_if`) as parsed fields for LogQL |
 | `telegraf/telegraf.conf` | Tails `flows.log` (poll mode — required for Docker Desktop bind mounts), writes tagged points to InfluxDB |
-| `grafana/provisioning/datasources/datasources.yml` | Prometheus, Loki, InfluxDB (netflow, v2/Flux), InfluxDB (ntopng, v1/InfluxQL) data source definitions (fixed UIDs, referenced by dashboard JSON) |
+| `grafana/provisioning/datasources/datasources.yml` | Prometheus, Loki, InfluxDB (netflow, v2/Flux), InfluxDB (ntopng, v1/InfluxQL), Infinity (ntopng live REST API) data source definitions (fixed UIDs, referenced by dashboard JSON) |
 | `grafana/provisioning/dashboards/dashboards.yml` | Points Grafana at `grafana/dashboards/` for auto-loading |
-| `grafana/dashboards/*.json` | The 8 dashboards (source of truth — edit these, not via UI, for changes to survive a volume wipe) |
+| `grafana/dashboards/*.json` | The 9 dashboards (source of truth — edit these, not via UI, for changes to survive a volume wipe) |
 | `scripts/netflow-relay.py` | UDP fan-out relay (LaunchAgent `com.netmon.netflow-relay.plist`) duplicating the router's single NetFlow export to both goflow2 and netflow2ng |
 
 ### Dashboards
@@ -118,6 +118,7 @@ Access points:
 | NetFlow Rich Detail | Loki | Per-flow LogQL time series grouped by port/IP/interface + raw log stream |
 | NetFlow (InfluxDB) | InfluxDB (netflow, v2/Flux) | Proper time-series panels (bars/lines) grouped by port/IP/interface, backed by real point storage |
 | ntopng - Flows, Hosts & Traffic (InfluxDB) | InfluxDB (ntopng, v1/InfluxQL) | Active/local host counts, active/new flows, bytes by L4 protocol, ASN, and country, TCP anomalies, ntopng CPU load |
+| ntopng - Live Hosts (Names) | Infinity (ntopng REST API) | Table of currently active hosts with resolved names (e.g. `samsung-familyhub`, `mac.localdomain`), IP, bytes, flows, throughput — queries ntopng's live API directly since per-host data isn't in InfluxDB (see Known limitations) |
 
 ## Maintenance
 
@@ -157,6 +158,13 @@ docker exec influxdb-ntopng influx -database ntopng -execute 'SELECT * FROM "ifa
 ```
 Confirmed working: ntopng auto-created its retention policies/continuous queries on first save ("InfluxDB CQ migration completed"), `influxdb-ntopng` logs show `POST /write` returning `204`, and measurements such as `iface:local_hosts`, `iface:hosts`, `iface:flows`, `asn:*`, `country:*`, and `system:cpu_load` contain real data points. This is now visualized in Grafana via the "ntopng - Flows, Hosts & Traffic (InfluxDB)" dashboard, backed by the `InfluxDB-ntopng` datasource (InfluxQL mode, `grafana/provisioning/datasources/datasources.yml`).
 
+**Note:** these are interface-level aggregates only — no per-host series (e.g. `host:traffic`) have been observed in `influxdb-ntopng`, even with `ntopng.prefs.hosts_ts_creation=light` and `ntopng.prefs.is_local_host_cache_enabled=1` set. This may be a Community Edition limitation. For per-host visibility with resolved names, use the "ntopng - Live Hosts (Names)" dashboard instead (queries ntopng's live REST API directly, not InfluxDB).
+
+### ntopng Live Hosts dashboard (Infinity datasource)
+Since per-host InfluxDB timeseries aren't available (see above), the "ntopng - Live Hosts (Names)" dashboard uses the [Infinity datasource plugin](https://github.com/yesoreyeram/grafana-infinity-datasource) (`GF_INSTALL_PLUGINS` in `docker-compose.yml`) to query ntopng's REST API directly: `http://ntopng:3000/lua/rest/v2/get/host/active.lua`. This returns live host names resolved via mDNS/DHCP/reverse-DNS (e.g. `samsung-familyhub`, `iphone.localdomain`), not just IPs.
+
+Key detail: Infinity query targets must include `"parser": "backend"` for the `columns` selector list to be applied — omitting it silently returns an empty result set with no error.
+
 ### Rebuilding Grafana from scratch (disaster recovery test)
 ```zsh
 docker compose stop grafana
@@ -184,3 +192,5 @@ git add -A && git commit -m "describe the change"
 - **`--disable-login` requires an explicit mode argument (`0` or `1`)** in the `ntopng` command list in `docker-compose.yml`. Omitting it causes ntopng's argument parser to consume the *next* list item as the mode value instead — e.g. it previously swallowed `--local-networks` itself, silently discarding local-network classification (symptom: "No local hosts detected" despite active traffic) and leaving login enabled. Always keep `"1"` as its own list entry immediately after `"--disable-login"`.
 - **The UniFi router's NetFlow exporter only supports a single destination IP:port.** With both goflow2 (`2055`) and netflow2ng (`2056`) needing the same flow data, the router is instead pointed at `scripts/netflow-relay.py` (port `2057`), which duplicates every datagram to both. If flows stop reaching one or both pipelines, check `launchctl list | grep netflow-relay` and the logs in `~/Library/Logs/netflow-relay/`.
 - **The ntopng InfluxDB datasource uses InfluxQL (v1.x), not Flux** — unlike the main `InfluxDB-NetFlow` datasource. Dashboard panel queries use the classic `{"query": "SELECT ...", "rawQuery": true}` target format, not Flux syntax.
+- **ntopng does not appear to write per-host InfluxDB timeseries** (e.g. `host:traffic`) even with `hosts_ts_creation=light` enabled — only interface-level aggregates (`iface:*`, `asn:*`, `country:*`) are written. Possibly a Community Edition restriction; unconfirmed. Use the Infinity-backed "ntopng - Live Hosts (Names)" dashboard for per-host visibility instead.
+- **Infinity datasource queries require `"parser": "backend"`** in the target JSON, or the `columns` selectors silently produce an empty table with no error.

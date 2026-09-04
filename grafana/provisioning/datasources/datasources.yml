@@ -41,3 +41,12 @@ datasources:
       httpMode: GET
       dbName: ntopng
     editable: true
+
+  - name: Infinity-ntopng
+    uid: infinity-ntopng
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    jsonData:
+      allowedHosts:
+        - http://ntopng:3000
+    editable: true
