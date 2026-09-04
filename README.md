@@ -84,14 +84,23 @@ cd ~/docker-monitoring
 docker compose up -d
 ```
 
-This brings up all 8 containers. Grafana auto-provisions its data sources and dashboards from files on every start — no manual UI setup is required.
+This brings up all 12 containers. Grafana auto-provisions its data sources and dashboards from files on every start — no manual UI setup is required.
+
+The NetFlow relay LaunchAgent (one-time install for the native relay component):
+```zsh
+cp launchagents/com.netmon.netflow-relay.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.netmon.netflow-relay.plist
+```
 
 Access points:
 - Grafana: http://localhost:3000 (`admin` / `admin` — change on first login)
+  - Control Center dashboards: `/d/cc-system-health`, `/d/cc-network-router`, `/d/cc-netflow-analytics`, `/d/cc-live-flows`
 - Prometheus: http://localhost:9090
-- InfluxDB UI: http://localhost:8086
+- InfluxDB (v2, netflow) UI: http://localhost:8086
+- InfluxDB (v1.8, ntopng): http://localhost:8087 (API only, no UI; unauthenticated)
 - Netdata: http://localhost:19999
 - ntopng: http://localhost:3001 (login disabled)
+- netflow2ng metrics: http://localhost:8091/metrics
 
 ## Configuration reference
 
@@ -105,6 +114,7 @@ Access points:
 | `grafana/provisioning/dashboards/dashboards.yml` | Points Grafana at `grafana/dashboards/` for auto-loading |
 | `grafana/dashboards/*.json` | The 13 dashboards: 4 "Control Center" dashboards (primary) plus the 9 original single-source dashboards kept as legacy/backup (source of truth — edit these, not via UI, for changes to survive a volume wipe) |
 | `scripts/netflow-relay.py` | UDP fan-out relay (LaunchAgent `com.netmon.netflow-relay.plist`) duplicating the router's single NetFlow export to both goflow2 and netflow2ng |
+| `launchagents/com.netmon.netflow-relay.plist` | Version-controlled copy of the relay's LaunchAgent definition — copy to `~/Library/LaunchAgents/` and `launchctl load` it (see Deployment) |
 
 ### Dashboards
 
