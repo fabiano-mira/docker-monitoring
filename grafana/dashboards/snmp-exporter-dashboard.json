@@ -1,439 +1,112 @@
 {
   "uid": "snmp-exporter-gateway",
   "title": "SNMP Exporter - Gateway (10.9.1.1)",
-  "tags": [
-    "snmp",
-    "snmp_exporter",
-    "router"
-  ],
+  "tags": ["snmp", "snmp_exporter", "router"],
   "timezone": "browser",
   "schemaVersion": 39,
   "refresh": "30s",
-  "time": {
-    "from": "now-1h",
-    "to": "now"
-  },
+  "time": { "from": "now-1h", "to": "now" },
   "panels": [
+    { "id": 200, "type": "row", "title": "Overview", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "panels": [] },
     {
-      "id": 200,
-      "type": "row",
-      "title": "Overview",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "panels": []
+      "id": 1, "title": "Scrape", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "mappings": [{ "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } }], "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
+      "targets": [{ "expr": "up{job=\"snmp_exporter_gateway\"}", "legendFormat": "up", "refId": "A" }]
     },
     {
-      "id": 1,
-      "title": "Scrape Up",
-      "type": "stat",
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 0,
-        "y": 1
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "id": 2, "title": "Scrape Duration", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 2, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 9 } ] } }, "overrides": [] },
+      "targets": [{ "expr": "snmp_scrape_duration_seconds{job=\"snmp_exporter_gateway\"}", "legendFormat": "duration", "refId": "A" }]
+    },
+    {
+      "id": 3, "title": "Interfaces Up / Total", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "none", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] },
       "targets": [
-        {
-          "expr": "up{job=\"snmp_exporter_gateway\"}",
-          "legendFormat": "up",
-          "refId": "A"
-        }
+        { "expr": "count(ifOperStatus{job=\"snmp_exporter_gateway\"} == 1)", "legendFormat": "up", "refId": "A" },
+        { "expr": "count(ifOperStatus{job=\"snmp_exporter_gateway\"})", "legendFormat": "total", "refId": "B" }
       ]
     },
     {
-      "id": 2,
-      "title": "SNMP Scrape Duration (s)",
-      "type": "stat",
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 4,
-        "y": 1
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "decimals": 3
-        },
-        "overrides": []
-      },
+      "id": 4, "title": "WAN (eth0) Link", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "none", "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "short", "mappings": [{ "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "2": { "text": "DOWN", "color": "red" } } }] }, "overrides": [] },
       "targets": [
-        {
-          "expr": "snmp_scrape_duration_seconds{job=\"snmp_exporter_gateway\"}",
-          "legendFormat": "duration",
-          "refId": "A"
-        }
+        { "expr": "ifAdminStatus{job=\"snmp_exporter_gateway\",ifName=\"eth0\"}", "legendFormat": "admin", "refId": "A" },
+        { "expr": "ifOperStatus{job=\"snmp_exporter_gateway\",ifName=\"eth0\"}", "legendFormat": "oper", "refId": "B" }
       ]
     },
     {
-      "id": 3,
-      "title": "Interfaces Up / Total",
-      "type": "stat",
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 8,
-        "y": 1
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
+      "id": 5, "title": "eth0 Link Speed", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "none", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "Mbits", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "targets": [{ "expr": "ifHighSpeed{job=\"snmp_exporter_gateway\",ifName=\"eth0\"}", "legendFormat": "eth0", "refId": "A" }]
+    },
+
+    { "id": 201, "type": "row", "title": "Interface Traffic", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }, "panels": [] },
+    {
+      "id": 6, "title": "Inbound by Interface", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 35, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "rate(ifHCInOctets{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*|bond0|wifi0|wifi1|wifi2\"}[5m]) * 8", "legendFormat": "{{ifName}}", "refId": "A" }]
+    },
+    {
+      "id": 7, "title": "Outbound by Interface", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 35, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "rate(ifHCOutOctets{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*|bond0|wifi0|wifi1|wifi2\"}[5m]) * 8", "legendFormat": "{{ifName}}", "refId": "A" }]
+    },
+
+    { "id": 202, "type": "row", "title": "Packets & Errors", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }, "panels": [] },
+    {
+      "id": 8, "title": "Unicast Packets", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "pps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 20, "gradientMode": "hue", "showPoints": "never" } }, "overrides": [] },
       "targets": [
-        {
-          "expr": "count(ifOperStatus{job=\"snmp_exporter_gateway\"} == 1)",
-          "legendFormat": "up",
-          "refId": "A"
-        },
-        {
-          "expr": "count(ifOperStatus{job=\"snmp_exporter_gateway\"})",
-          "legendFormat": "total",
-          "refId": "B"
-        }
+        { "expr": "rate(ifHCInUcastPkts{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*\"}[5m])", "legendFormat": "{{ifName}} in", "refId": "A" },
+        { "expr": "rate(ifHCOutUcastPkts{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*\"}[5m])", "legendFormat": "{{ifName}} out", "refId": "B" }
       ]
     },
     {
-      "id": 4,
-      "title": "eth0 Admin/Oper Status (1=up, 2=down)",
-      "type": "stat",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 1
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "id": 9, "title": "Errors & Discards", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 20, "gradientMode": "hue", "showPoints": "never" } }, "overrides": [] },
       "targets": [
-        {
-          "expr": "ifAdminStatus{job=\"snmp_exporter_gateway\",ifName=\"eth0\"}",
-          "legendFormat": "admin",
-          "refId": "A"
-        },
-        {
-          "expr": "ifOperStatus{job=\"snmp_exporter_gateway\",ifName=\"eth0\"}",
-          "legendFormat": "oper",
-          "refId": "B"
-        }
+        { "expr": "rate(ifInErrors{job=\"snmp_exporter_gateway\"}[5m])", "legendFormat": "{{ifName}} in-err", "refId": "A" },
+        { "expr": "rate(ifOutErrors{job=\"snmp_exporter_gateway\"}[5m])", "legendFormat": "{{ifName}} out-err", "refId": "B" },
+        { "expr": "rate(ifInDiscards{job=\"snmp_exporter_gateway\"}[5m])", "legendFormat": "{{ifName}} in-disc", "refId": "C" },
+        { "expr": "rate(ifOutDiscards{job=\"snmp_exporter_gateway\"}[5m])", "legendFormat": "{{ifName}} out-disc", "refId": "D" }
       ]
     },
+
+    { "id": 203, "type": "row", "title": "Interface Status Timeline", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 }, "panels": [] },
     {
-      "id": 5,
-      "title": "eth0 Link Speed (Mbps)",
-      "type": "stat",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 1
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "ifHighSpeed{job=\"snmp_exporter_gateway\",ifName=\"eth0\"}",
-          "legendFormat": "eth0",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 201,
-      "type": "row",
-      "title": "Interface Traffic",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 5
-      },
-      "panels": []
-    },
-    {
-      "id": 6,
-      "title": "Inbound Traffic by Interface (bits/s)",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 6
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bps",
-          "custom": {
-            "fillOpacity": 15
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "rate(ifHCInOctets{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*|bond0|wifi0|wifi1|wifi2\"}[5m]) * 8",
-          "legendFormat": "{{ifName}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 7,
-      "title": "Outbound Traffic by Interface (bits/s)",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 6
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bps",
-          "custom": {
-            "fillOpacity": 15
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "rate(ifHCOutOctets{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*|bond0|wifi0|wifi1|wifi2\"}[5m]) * 8",
-          "legendFormat": "{{ifName}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 202,
-      "type": "row",
-      "title": "Packets & Errors",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 14
-      },
-      "panels": []
-    },
-    {
-      "id": 8,
-      "title": "Unicast Packets/s by Interface",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 15
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "pps",
-          "custom": {
-            "fillOpacity": 15
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "rate(ifHCInUcastPkts{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*\"}[5m])",
-          "legendFormat": "{{ifName}} in",
-          "refId": "A"
-        },
-        {
-          "expr": "rate(ifHCOutUcastPkts{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*\"}[5m])",
-          "legendFormat": "{{ifName}} out",
-          "refId": "B"
-        }
-      ]
-    },
-    {
-      "id": 9,
-      "title": "Errors & Discards /s by Interface",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 15
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "fillOpacity": 15
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "rate(ifInErrors{job=\"snmp_exporter_gateway\"}[5m])",
-          "legendFormat": "{{ifName}} in-errors",
-          "refId": "A"
-        },
-        {
-          "expr": "rate(ifOutErrors{job=\"snmp_exporter_gateway\"}[5m])",
-          "legendFormat": "{{ifName}} out-errors",
-          "refId": "B"
-        },
-        {
-          "expr": "rate(ifInDiscards{job=\"snmp_exporter_gateway\"}[5m])",
-          "legendFormat": "{{ifName}} in-discards",
-          "refId": "C"
-        },
-        {
-          "expr": "rate(ifOutDiscards{job=\"snmp_exporter_gateway\"}[5m])",
-          "legendFormat": "{{ifName}} out-discards",
-          "refId": "D"
-        }
-      ]
-    },
-    {
-      "id": 203,
-      "type": "row",
-      "title": "Interface Status Table",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 23
-      },
-      "panels": []
-    },
-    {
-      "id": 10,
-      "title": "All Interfaces - Admin/Oper Status",
-      "type": "table",
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 24
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "options": {
-        "showHeader": true
-      },
-      "targets": [
-        {
-          "expr": "ifOperStatus{job=\"snmp_exporter_gateway\"}",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "__name__": true,
-              "instance": true,
-              "job": true
-            },
-            "indexByName": {},
-            "renameByName": {
-              "Value": "OperStatus (1=up,2=down)"
-            }
-          }
-        }
-      ]
+      "id": 10, "title": "Oper Status by Interface (green=up, red=down)", "type": "state-timeline",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "showValue": "never", "rowHeight": 0.8, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "fieldConfig": { "defaults": { "custom": { "fillOpacity": 80, "lineWidth": 0 }, "mappings": [{ "type": "value", "options": { "1": { "text": "up", "color": "green" }, "2": { "text": "down", "color": "red" }, "3": { "text": "testing", "color": "yellow" }, "6": { "text": "notPresent", "color": "dark-gray" }, "7": { "text": "lowerDown", "color": "orange" } } }] }, "overrides": [] },
+      "targets": [{ "expr": "ifOperStatus{job=\"snmp_exporter_gateway\"}", "legendFormat": "{{ifName}}", "refId": "A" }]
     }
   ]
 }

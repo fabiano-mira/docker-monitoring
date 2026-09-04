@@ -1,296 +1,81 @@
 {
   "uid": "netflow-rich",
   "title": "NetFlow Rich Detail (IPs, Ports, Interfaces)",
-  "tags": [
-    "netflow",
-    "ipfix",
-    "goflow2",
-    "loki"
-  ],
+  "tags": ["netflow", "ipfix", "goflow2", "loki"],
   "timezone": "browser",
   "schemaVersion": 39,
   "refresh": "15s",
-  "time": {
-    "from": "now-30m",
-    "to": "now"
-  },
+  "time": { "from": "now-30m", "to": "now" },
   "panels": [
+    { "id": 400, "type": "row", "title": "Traffic by Port / Protocol", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "panels": [] },
     {
-      "id": 400,
-      "type": "row",
-      "title": "Traffic by Port / Protocol",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "panels": []
+      "id": 1, "title": "Bytes/s by Destination Port", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 1 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 1, "fillOpacity": 45, "gradientMode": "opacity", "showPoints": "never", "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "targets": [{ "expr": "sum by (dst_port) (rate({job=\"goflow2\"} | json | unwrap bytes [1m]))", "legendFormat": "port {{dst_port}}", "refId": "A" }]
     },
     {
-      "id": 1,
-      "title": "Bytes/s by Destination Port",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 1
-      },
-      "datasource": {
-        "type": "loki",
-        "uid": "ffx74s2v4uq68a"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "custom": {
-            "fillOpacity": 20,
-            "stacking": {
-              "mode": "normal"
-            }
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "sum by (dst_port) (rate({job=\"goflow2\"} | json | unwrap bytes [1m]))",
-          "legendFormat": "port {{dst_port}}",
-          "refId": "A"
-        }
-      ]
+      "id": 2, "title": "Protocol Share (flows)", "type": "piechart",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 1 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "pieType": "donut", "reduceOptions": { "calcs": ["sum"], "values": false }, "legend": { "displayMode": "list", "placement": "right" }, "displayLabels": ["percent"] },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [{ "expr": "sum by (proto) (count_over_time({job=\"goflow2\"}[$__range]))", "legendFormat": "{{proto}}", "refId": "A", "instant": true }]
+    },
+
+    { "id": 401, "type": "row", "title": "Traffic by IP", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 10 }, "panels": [] },
+    {
+      "id": 3, "title": "Top Source IPs", "type": "bargauge",
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 11 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "displayMode": "gradient", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "showUnfilled": true },
+      "fieldConfig": { "defaults": { "unit": "Bps", "color": { "mode": "continuous-BlPu" } }, "overrides": [] },
+      "targets": [{ "expr": "topk(10, sum by (src_addr) (rate({job=\"goflow2\"} | json | unwrap bytes [5m])))", "legendFormat": "{{src_addr}}", "refId": "A" }]
     },
     {
-      "id": 2,
-      "title": "Flows/s by Protocol",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 1
-      },
-      "datasource": {
-        "type": "loki",
-        "uid": "ffx74s2v4uq68a"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "fillOpacity": 20,
-            "stacking": {
-              "mode": "normal"
-            }
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "sum by (proto) (count_over_time({job=\"goflow2\"}[1m]))",
-          "legendFormat": "{{proto}}",
-          "refId": "A"
-        }
-      ]
+      "id": 4, "title": "Bytes/s by Source IP", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 8, "x": 8, "y": 11 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 35, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "sum by (src_addr) (rate({job=\"goflow2\"} | json | unwrap bytes [1m]))", "legendFormat": "{{src_addr}}", "refId": "A" }]
     },
     {
-      "id": 401,
-      "type": "row",
-      "title": "Traffic by IP",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 10
-      },
-      "panels": []
+      "id": 5, "title": "Bytes/s by Destination IP (top 10)", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 11 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 35, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "topk(10, sum by (dst_addr) (rate({job=\"goflow2\"} | json | unwrap bytes [1m])))", "legendFormat": "{{dst_addr}}", "refId": "A" }]
+    },
+
+    { "id": 402, "type": "row", "title": "Traffic by Interface", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 }, "panels": [] },
+    {
+      "id": 6, "title": "Bytes/s by Interface Pair", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 21 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 1, "fillOpacity": 45, "gradientMode": "opacity", "showPoints": "never", "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "targets": [{ "expr": "sum by (in_if, out_if) (rate({job=\"goflow2\"} | json | unwrap bytes [1m]))", "legendFormat": "if{{in_if}} → if{{out_if}}", "refId": "A" }]
     },
     {
-      "id": 3,
-      "title": "Bytes/s by Source IP",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 11
-      },
-      "datasource": {
-        "type": "loki",
-        "uid": "ffx74s2v4uq68a"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "custom": {
-            "fillOpacity": 20
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "sum by (src_addr) (rate({job=\"goflow2\"} | json | unwrap bytes [1m]))",
-          "legendFormat": "{{src_addr}}",
-          "refId": "A"
-        }
-      ]
+      "id": 7, "title": "Packets/s by Interface Pair", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 21 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "pps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 1, "fillOpacity": 45, "gradientMode": "opacity", "showPoints": "never", "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "targets": [{ "expr": "sum by (in_if, out_if) (rate({job=\"goflow2\"} | json | unwrap packets [1m]))", "legendFormat": "if{{in_if}} → if{{out_if}}", "refId": "A" }]
     },
+
+    { "id": 403, "type": "row", "title": "Live Flow Records", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 }, "panels": [] },
     {
-      "id": 4,
-      "title": "Bytes/s by Destination IP (top talkers)",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 11
-      },
-      "datasource": {
-        "type": "loki",
-        "uid": "ffx74s2v4uq68a"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "custom": {
-            "fillOpacity": 20
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "topk(10, sum by (dst_addr) (rate({job=\"goflow2\"} | json | unwrap bytes [1m])))",
-          "legendFormat": "{{dst_addr}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 402,
-      "type": "row",
-      "title": "Traffic by Interface",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 20
-      },
-      "panels": []
-    },
-    {
-      "id": 5,
-      "title": "Bytes/s by Interface Pair (in_if -> out_if)",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 21
-      },
-      "datasource": {
-        "type": "loki",
-        "uid": "ffx74s2v4uq68a"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "custom": {
-            "fillOpacity": 20,
-            "stacking": {
-              "mode": "normal"
-            }
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "sum by (in_if, out_if) (rate({job=\"goflow2\"} | json | unwrap bytes [1m]))",
-          "legendFormat": "if{{in_if}} -> if{{out_if}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 6,
-      "title": "Packets/s by Interface Pair",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 21
-      },
-      "datasource": {
-        "type": "loki",
-        "uid": "ffx74s2v4uq68a"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "pps",
-          "custom": {
-            "fillOpacity": 20,
-            "stacking": {
-              "mode": "normal"
-            }
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "sum by (in_if, out_if) (rate({job=\"goflow2\"} | json | unwrap packets [1m]))",
-          "legendFormat": "if{{in_if}} -> if{{out_if}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 403,
-      "type": "row",
-      "title": "Live Flow Records",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 30
-      },
-      "panels": []
-    },
-    {
-      "id": 7,
-      "title": "Raw Flow Log Stream",
-      "type": "logs",
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 31
-      },
-      "datasource": {
-        "type": "loki",
-        "uid": "ffx74s2v4uq68a"
-      },
-      "options": {
-        "showTime": true,
-        "showLabels": true,
-        "wrapLogMessage": false,
-        "sortOrder": "Descending"
-      },
-      "targets": [
-        {
-          "expr": "{job=\"goflow2\"} | json | line_format \"{{.src_addr}}:{{.src_port}} -> {{.dst_addr}}:{{.dst_port}} ({{.proto}}) {{.bytes}}B if{{.in_if}}->if{{.out_if}}\"",
-          "refId": "A"
-        }
-      ]
+      "id": 8, "title": "Raw Flow Log Stream", "type": "logs",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 31 },
+      "datasource": { "type": "loki", "uid": "ffx74s2v4uq68a" },
+      "options": { "showTime": true, "showLabels": false, "wrapLogMessage": false, "sortOrder": "Descending", "enableLogDetails": true },
+      "targets": [{ "expr": "{job=\"goflow2\"} | json | line_format \"{{.src_addr}}:{{.src_port}} → {{.dst_addr}}:{{.dst_port}} ({{.proto}}) {{.bytes}}B if{{.in_if}}→if{{.out_if}}\"", "refId": "A" }]
     }
   ]
 }

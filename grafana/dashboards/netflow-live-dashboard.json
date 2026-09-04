@@ -1,386 +1,98 @@
 {
   "uid": "netflow-live",
   "title": "NetFlow/IPFIX Live (Router 10.9.1.1)",
-  "tags": [
-    "netflow",
-    "ipfix",
-    "goflow2",
-    "router"
-  ],
+  "tags": ["netflow", "ipfix", "goflow2", "router"],
   "timezone": "browser",
   "schemaVersion": 39,
   "refresh": "10s",
-  "time": {
-    "from": "now-30m",
-    "to": "now"
-  },
+  "time": { "from": "now-30m", "to": "now" },
   "panels": [
+    { "id": 300, "type": "row", "title": "Overview", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "panels": [] },
     {
-      "id": 300,
-      "type": "row",
-      "title": "Overview",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "panels": []
+      "id": 1, "title": "Flows Processed/s", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 2, "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_total_nf_persec_average{job=\"netdata\"}", "legendFormat": "router {{router}} v{{version}}", "refId": "A" }]
     },
     {
-      "id": 1,
-      "title": "Flows Processed/s",
-      "type": "stat",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 1
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_total_nf_persec_average{job=\"netdata\"}",
-          "legendFormat": "router {{router}} v{{version}}",
-          "refId": "A"
-        }
-      ]
+      "id": 2, "title": "Traffic Bytes/s", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "Bps", "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_traffic_bytes_total_bytes_persec_average{job=\"netdata\"}", "legendFormat": "{{remote_ip}}", "refId": "A" }]
     },
     {
-      "id": 2,
-      "title": "Traffic Bytes/s",
-      "type": "stat",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 1
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps"
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_traffic_bytes_total_bytes_persec_average{job=\"netdata\"}",
-          "legendFormat": "{{remote_ip}}",
-          "refId": "A"
-        }
-      ]
+      "id": 3, "title": "Traffic Packets/s", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "pps", "color": { "mode": "fixed", "fixedColor": "purple" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_traffic_packets_total_packets_persec_average{job=\"netdata\"}", "legendFormat": "{{remote_ip}}", "refId": "A" }]
     },
     {
-      "id": 3,
-      "title": "Traffic Packets/s",
-      "type": "stat",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 1
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "pps"
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_traffic_packets_total_packets_persec_average{job=\"netdata\"}",
-          "legendFormat": "{{remote_ip}}",
-          "refId": "A"
-        }
-      ]
+      "id": 4, "title": "Decode Errors/s", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "area", "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 0.01 } ] } }, "overrides": [] },
+      "targets": [{ "expr": "sum(netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_errors_total_errors_persec_average{job=\"netdata\"}) or vector(0)", "legendFormat": "errors", "refId": "A" }]
+    },
+
+    { "id": 301, "type": "row", "title": "Live Traffic", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }, "panels": [] },
+    {
+      "id": 5, "title": "Flow Traffic Bytes/s", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 3, "fillOpacity": 50, "gradientMode": "scheme", "showPoints": "never" }, "color": { "mode": "continuous-BlPu" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_traffic_bytes_total_bytes_persec_average{job=\"netdata\"}", "legendFormat": "from {{remote_ip}} ({{type}})", "refId": "A" }]
     },
     {
-      "id": 4,
-      "title": "Decode Errors/s",
-      "type": "stat",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 1
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 0.01
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_errors_total_errors_persec_average{job=\"netdata\"}",
-          "legendFormat": "{{error}}",
-          "refId": "A"
-        }
-      ]
+      "id": 6, "title": "Flow Traffic Packets/s", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "pps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 3, "fillOpacity": 50, "gradientMode": "scheme", "showPoints": "never" }, "color": { "mode": "continuous-GrYlRd" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_traffic_packets_total_packets_persec_average{job=\"netdata\"}", "legendFormat": "from {{remote_ip}} ({{type}})", "refId": "A" }]
+    },
+
+    { "id": 302, "type": "row", "title": "Protocol Internals", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }, "panels": [] },
+    {
+      "id": 7, "title": "FlowSet Records/s by Type", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 60, "gradientMode": "hue", "stacking": { "mode": "normal" }, "barAlignment": 0 } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_flowset_records_total_records_persec_average{job=\"netdata\"}", "legendFormat": "{{type}}", "refId": "A" }]
     },
     {
-      "id": 301,
-      "type": "row",
-      "title": "Live Traffic",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 5
-      },
-      "panels": []
+      "id": 8, "title": "Templates Received/s", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 25, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_templates_total_templates_persec_average{job=\"netdata\"}", "legendFormat": "router {{router}}", "refId": "A" }]
+    },
+
+    { "id": 303, "type": "row", "title": "Performance", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 }, "panels": [] },
+    {
+      "id": 9, "title": "Flow Packet Size", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 25, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_traffic_size_bytes_bytes_persec_average{job=\"netdata\"}", "legendFormat": "p{{dimension}}", "refId": "A" }]
     },
     {
-      "id": 5,
-      "title": "Flow Traffic Bytes/s (received by collector)",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 6
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "custom": {
-            "fillOpacity": 20
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_traffic_bytes_total_bytes_persec_average{job=\"netdata\"}",
-          "legendFormat": "from {{remote_ip}} ({{type}})",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 6,
-      "title": "Flow Traffic Packets/s (received by collector)",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 6
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "pps",
-          "custom": {
-            "fillOpacity": 20
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_traffic_packets_total_packets_persec_average{job=\"netdata\"}",
-          "legendFormat": "from {{remote_ip}} ({{type}})",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 302,
-      "type": "row",
-      "title": "Protocol Internals (NetFlow v9/IPFIX)",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 14
-      },
-      "panels": []
-    },
-    {
-      "id": 7,
-      "title": "FlowSet Records/s by type",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 15
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "stacking": {
-              "mode": "normal"
-            },
-            "fillOpacity": 30
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_flowset_records_total_records_persec_average{job=\"netdata\"}",
-          "legendFormat": "{{type}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 8,
-      "title": "Templates Received/s",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 15
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "fillOpacity": 20
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_templates_total_templates_persec_average{job=\"netdata\"}",
-          "legendFormat": "router {{router}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 303,
-      "type": "row",
-      "title": "Performance",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 23
-      },
-      "panels": []
-    },
-    {
-      "id": 9,
-      "title": "Average Flow Packet Size (bytes)",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 24
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "custom": {
-            "fillOpacity": 20
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_traffic_size_bytes_bytes_persec_average{job=\"netdata\"}",
-          "legendFormat": "p{{dimension}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 10,
-      "title": "Processing Delay (seconds)",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 24
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bfx714adccgsga"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "fillOpacity": 20
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_delay_seconds_seconds_average{job=\"netdata\"}",
-          "legendFormat": "delay",
-          "refId": "A"
-        }
-      ]
+      "id": 10, "title": "Processing Delay", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 25, "gradientMode": "hue", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_delay_seconds_seconds_average{job=\"netdata\"}", "legendFormat": "delay", "refId": "A" }]
     }
   ]
 }

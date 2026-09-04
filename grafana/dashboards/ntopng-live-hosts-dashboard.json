@@ -1,41 +1,84 @@
 {
   "uid": "ntopng-live-hosts",
   "title": "ntopng - Live Hosts (Names)",
-  "tags": [
-    "netflow",
-    "ntopng",
-    "infinity"
-  ],
+  "tags": ["netflow", "ntopng", "infinity"],
   "timezone": "browser",
   "schemaVersion": 39,
   "refresh": "15s",
-  "time": {
-    "from": "now-15m",
-    "to": "now"
-  },
+  "time": { "from": "now-15m", "to": "now" },
   "panels": [
     {
-      "id": 1,
-      "title": "Active Hosts",
-      "type": "table",
-      "gridPos": { "h": 18, "w": 24, "x": 0, "y": 0 },
+      "id": 1, "title": "Top Hosts by Live Throughput", "type": "bargauge",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
       "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-ntopng" },
-      "fieldConfig": {
-        "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
-        "overrides": [
-          { "matcher": { "id": "byName", "options": "is_localhost" }, "properties": [{ "id": "custom.cellOptions", "value": { "type": "color-background" } }] }
-        ]
-      },
+      "options": { "displayMode": "gradient", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "values": true, "limit": 12 }, "showUnfilled": true, "valueMode": "color", "sizing": "auto" },
+      "fieldConfig": { "defaults": { "unit": "bps", "color": { "mode": "continuous-GrYlRd" }, "min": 0 }, "overrides": [] },
       "transformations": [
-        { "id": "organize", "options": { "excludeByName": { "key": true, "mac": true, "pool": true, "score": true, "vlan": true, "os": true } } }
+        { "id": "sortBy", "options": { "fields": {}, "sort": [{ "field": "Throughput", "desc": true }] } },
+        { "id": "limit", "options": { "limitField": 12 } },
+        { "id": "rowsToFields", "options": { "mappings": [ { "fieldName": "Name", "handlerKey": "field.name" }, { "fieldName": "Throughput", "handlerKey": "field.value" } ] } }
       ],
       "targets": [
         {
           "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-ntopng" },
-          "type": "json",
-          "source": "url",
-          "format": "table",
-          "parser": "backend",
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "http://ntopng:3000/lua/rest/v2/get/host/active.lua?ifid=0&perPage=500&sortColumn=thpt&sortOrder=desc",
+          "url_options": { "method": "GET" },
+          "root_selector": "rsp.data",
+          "columns": [
+            { "selector": "name", "text": "Name", "type": "string" },
+            { "selector": "thpt.bps", "text": "Throughput", "type": "number" }
+          ],
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2, "title": "Active Hosts", "type": "table",
+      "gridPos": { "h": 15, "w": 24, "x": 0, "y": 9 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-ntopng" },
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "Throughput (bps)", "desc": true }], "footer": { "show": false } },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "filterable": true } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Local" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+            { "id": "mappings", "value": [{ "type": "value", "options": { "true": { "text": "LOCAL", "color": "green" }, "false": { "text": "remote", "color": "dark-gray" } } }] },
+            { "id": "custom.width", "value": 110 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Bytes" }, "properties": [
+            { "id": "unit", "value": "bytes" },
+            { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } },
+            { "id": "color", "value": { "mode": "continuous-BlPu" } },
+            { "id": "min", "value": 0 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Bytes Sent" }, "properties": [
+            { "id": "unit", "value": "bytes" },
+            { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } },
+            { "id": "color", "value": { "mode": "continuous-GrYlRd" } },
+            { "id": "min", "value": 0 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Bytes Recv" }, "properties": [
+            { "id": "unit", "value": "bytes" },
+            { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } },
+            { "id": "color", "value": { "mode": "continuous-GrYlRd" } },
+            { "id": "min", "value": 0 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Throughput (bps)" }, "properties": [
+            { "id": "unit", "value": "bps" },
+            { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } },
+            { "id": "color", "value": { "mode": "continuous-GrYlRd" } },
+            { "id": "min", "value": 0 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Last Seen" }, "properties": [
+            { "id": "unit", "value": "dateTimeFromNow" }
+          ]}
+        ]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-ntopng" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
           "url": "http://ntopng:3000/lua/rest/v2/get/host/active.lua?ifid=0&perPage=200",
           "url_options": { "method": "GET" },
           "root_selector": "rsp.data",
