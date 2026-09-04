@@ -103,10 +103,21 @@ Access points:
 | `telegraf/telegraf.conf` | Tails `flows.log` (poll mode — required for Docker Desktop bind mounts), writes tagged points to InfluxDB |
 | `grafana/provisioning/datasources/datasources.yml` | Prometheus, Loki, InfluxDB (netflow, v2/Flux), InfluxDB (ntopng, v1/InfluxQL), Infinity (ntopng live REST API) data source definitions (fixed UIDs, referenced by dashboard JSON) |
 | `grafana/provisioning/dashboards/dashboards.yml` | Points Grafana at `grafana/dashboards/` for auto-loading |
-| `grafana/dashboards/*.json` | The 9 dashboards (source of truth — edit these, not via UI, for changes to survive a volume wipe) |
+| `grafana/dashboards/*.json` | The 13 dashboards: 4 "Control Center" dashboards (primary) plus the 9 original single-source dashboards kept as legacy/backup (source of truth — edit these, not via UI, for changes to survive a volume wipe) |
 | `scripts/netflow-relay.py` | UDP fan-out relay (LaunchAgent `com.netmon.netflow-relay.plist`) duplicating the router's single NetFlow export to both goflow2 and netflow2ng |
 
 ### Dashboards
+
+**Control Center (primary):** four consolidated dashboards merging the legacy per-source dashboards, using modern visualizations (smooth gradient timeseries, gauges, bar gauges, donut charts, state timelines, node graph — no tables).
+
+| Dashboard | Data sources | Content |
+|---|---|---|
+| Control Center · System Health | Prometheus (Netdata + node_exporter) | KPI gauges (CPU/RAM/disk/GPU/battery), stacked gradient CPU/RAM, load, swap, disk space/IO, en0 throughput, TCP packets, Docker VM row |
+| Control Center · Network & Router | Prometheus (SNMP + goflow2-via-Netdata) | Router health stats, per-interface in/out gradient traffic, packets, errors/discards, interface oper-status state timeline, collector ingest/flowsets/templates/delay |
+| Control Center · Flow Analytics | InfluxDB v2 (Flux) + Loki + InfluxDB ntopng (InfluxQL) | Hosts/flows KPIs, bytes by port, protocol donut, L4 bytes, top talkers bar gauge + gradient series, ASN/country traffic, interface pairs, TCP anomalies, engine load |
+| Control Center · Live Flows | Infinity (ntopng REST) + Prometheus + Loki + InfluxDB ntopng | Live node graph of host-to-host flows (edge = active flow, labels = resolved names), top hosts by live throughput bar gauge, gradient ingest rate, live flow log stream |
+
+**Legacy (kept as backup):**
 
 | Dashboard | Data source | Content |
 |---|---|---|
@@ -194,3 +205,4 @@ git add -A && git commit -m "describe the change"
 - **The ntopng InfluxDB datasource uses InfluxQL (v1.x), not Flux** — unlike the main `InfluxDB-NetFlow` datasource. Dashboard panel queries use the classic `{"query": "SELECT ...", "rawQuery": true}` target format, not Flux syntax.
 - **ntopng does not appear to write per-host InfluxDB timeseries** (e.g. `host:traffic`) even with `hosts_ts_creation=light` enabled — only interface-level aggregates (`iface:*`, `asn:*`, `country:*`) are written. Possibly a Community Edition restriction; unconfirmed. Use the Infinity-backed "ntopng - Live Hosts (Names)" dashboard for per-host visibility instead.
 - **Infinity datasource queries require `"parser": "backend"`** in the target JSON, or the `columns` selectors silently produce an empty table with no error.
+- **The Live Flows node graph can transiently warn about missing nodes** — its nodes (host/active) and edges (flow/active) come from two separate ntopng API calls, so a flow can briefly reference a host that just aged out of the host list. A refresh clears it.

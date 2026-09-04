@@ -1,0 +1,157 @@
+{
+  "uid": "cc-system-health",
+  "title": "Control Center · System Health",
+  "tags": ["control-center", "netdata", "host", "macos"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    { "id": 100, "type": "row", "title": "At a Glance", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "panels": [] },
+    {
+      "id": 1, "title": "Uptime", "type": "stat",
+      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "none", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "fixed", "fixedColor": "text" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_system_uptime_seconds_average{job=\"netdata\"}", "legendFormat": "uptime", "refId": "A" }]
+    },
+    {
+      "id": 2, "title": "CPU Busy", "type": "gauge",
+      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "showThresholdMarkers": true },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+      "targets": [{ "expr": "100 - netdata_system_cpu_percentage_average{job=\"netdata\",dimension=\"idle\"}", "legendFormat": "cpu", "refId": "A" }]
+    },
+    {
+      "id": 3, "title": "RAM Used", "type": "gauge",
+      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+      "targets": [{ "expr": "(sum(netdata_system_ram_MiB_average{job=\"netdata\",dimension=~\"active|wired|compressor\"}) / sum(netdata_system_ram_MiB_average{job=\"netdata\"})) * 100", "legendFormat": "ram", "refId": "A" }]
+    },
+    {
+      "id": 4, "title": "Root Disk", "type": "gauge",
+      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+      "targets": [{ "expr": "(sum(netdata_disk_space_GiB_average{job=\"netdata\",mount_point=\"/\",dimension=\"used\"}) / (sum(netdata_disk_space_GiB_average{job=\"netdata\",mount_point=\"/\",dimension=\"used\"}) + sum(netdata_disk_space_GiB_average{job=\"netdata\",mount_point=\"/\",dimension=\"avail\"}))) * 100", "legendFormat": "root", "refId": "A" }]
+    },
+    {
+      "id": 5, "title": "GPU", "type": "gauge",
+      "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_macos_gpu_utilization_percentage_average{job=\"netdata\"}", "legendFormat": "gpu", "refId": "A" }]
+    },
+    {
+      "id": 6, "title": "Battery", "type": "gauge",
+      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "yellow", "value": 20 }, { "color": "green", "value": 50 } ] } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_powersupply_capacity_percentage_average{job=\"netdata\"}", "legendFormat": "battery", "refId": "A" }]
+    },
+
+    { "id": 101, "type": "row", "title": "Compute", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }, "panels": [] },
+    {
+      "id": 7, "title": "CPU Usage by State", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max", "lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 35, "gradientMode": "opacity", "showPoints": "never", "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_system_cpu_percentage_average{job=\"netdata\"}", "legendFormat": "{{dimension}}", "refId": "A" }]
+    },
+    {
+      "id": 8, "title": "Load Average", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 25, "gradientMode": "hue", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_system_load_load_average{job=\"netdata\"}", "legendFormat": "{{dimension}}", "refId": "A" }]
+    },
+
+    { "id": 102, "type": "row", "title": "Memory", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 }, "panels": [] },
+    {
+      "id": 9, "title": "RAM Composition", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 17 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "decmbytes", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 1, "fillOpacity": 40, "gradientMode": "opacity", "showPoints": "never", "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_system_ram_MiB_average{job=\"netdata\"}", "legendFormat": "{{dimension}}", "refId": "A" }]
+    },
+    {
+      "id": 10, "title": "Swap", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 17 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "decmbytes", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 25, "gradientMode": "hue", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_mem_swap_MiB_average{job=\"netdata\"}", "legendFormat": "{{dimension}}", "refId": "A" }]
+    },
+
+    { "id": 103, "type": "row", "title": "Disk", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 }, "panels": [] },
+    {
+      "id": 11, "title": "Disk Space by Mount", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 27 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "decgbytes", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 20, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_disk_space_GiB_average{job=\"netdata\",dimension=~\"used|avail\"}", "legendFormat": "{{mount_point}} {{dimension}}", "refId": "A" }]
+    },
+    {
+      "id": 12, "title": "Disk I/O", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 27 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "KiBs", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 30, "gradientMode": "hue", "showPoints": "never", "axisCenteredZero": true } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_disk_io_KiB_persec_average{job=\"netdata\"}", "legendFormat": "{{device}} {{dimension}}", "refId": "A" }]
+    },
+
+    { "id": 104, "type": "row", "title": "Host Network", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 }, "panels": [] },
+    {
+      "id": 13, "title": "en0 Throughput", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 37 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "Kbits", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 40, "gradientMode": "opacity", "showPoints": "never", "axisCenteredZero": true } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_net_net_kilobits_persec_average{job=\"netdata\",device=\"en0\"}", "legendFormat": "{{dimension}}", "refId": "A" }]
+    },
+    {
+      "id": 14, "title": "TCP Packets", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 37 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "pps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 25, "gradientMode": "hue", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_ipv4_tcppackets_packets_persec_average{job=\"netdata\"}", "legendFormat": "{{dimension}}", "refId": "A" }]
+    },
+
+    { "id": 105, "type": "row", "title": "Docker Desktop VM (node_exporter — LinuxKit, not the Mac)", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 46 }, "panels": [] },
+    {
+      "id": 15, "title": "VM CPU Usage", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 47 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "min": 0, "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 30, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))", "legendFormat": "vm cpu busy", "refId": "A" }]
+    },
+    {
+      "id": 16, "title": "VM Memory", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 47 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 30, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        { "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes", "legendFormat": "used", "refId": "A" },
+        { "expr": "node_memory_MemAvailable_bytes", "legendFormat": "available", "refId": "B" }
+      ]
+    },
+    {
+      "id": 17, "title": "VM Filesystem Used", "type": "bargauge",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 47 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "displayMode": "gradient", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "values": false } },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.7 }, { "color": "red", "value": 0.9 } ] } }, "overrides": [] },
+      "targets": [{ "expr": "1 - (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\"})", "legendFormat": "{{mountpoint}}", "refId": "A" }]
+    }
+  ]
+}

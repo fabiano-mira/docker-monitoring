@@ -1,0 +1,154 @@
+{
+  "uid": "cc-network-router",
+  "title": "Control Center · Network & Router",
+  "tags": ["control-center", "snmp", "router", "goflow2"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    { "id": 100, "type": "row", "title": "Router Health (SNMP)", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "panels": [] },
+    {
+      "id": 1, "title": "SNMP Up", "type": "stat",
+      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "mappings": [{ "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } }], "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
+      "targets": [{ "expr": "up{job=\"snmp_exporter_gateway\"}", "legendFormat": "snmp", "refId": "A" }]
+    },
+    {
+      "id": 2, "title": "Scrape Duration", "type": "stat",
+      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 2, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 9 } ] } }, "overrides": [] },
+      "targets": [{ "expr": "snmp_scrape_duration_seconds{job=\"snmp_exporter_gateway\"}", "legendFormat": "duration", "refId": "A" }]
+    },
+    {
+      "id": 3, "title": "Interfaces Up", "type": "stat",
+      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "none", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] },
+      "targets": [
+        { "expr": "count(ifOperStatus{job=\"snmp_exporter_gateway\"} == 1)", "legendFormat": "up", "refId": "A" },
+        { "expr": "count(ifOperStatus{job=\"snmp_exporter_gateway\"})", "legendFormat": "total", "refId": "B" }
+      ]
+    },
+    {
+      "id": 4, "title": "WAN (eth0) Link", "type": "stat",
+      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "none", "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "short", "mappings": [{ "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "2": { "text": "DOWN", "color": "red" } } }] }, "overrides": [] },
+      "targets": [{ "expr": "ifOperStatus{job=\"snmp_exporter_gateway\",ifName=\"eth0\"}", "legendFormat": "eth0", "refId": "A" }]
+    },
+    {
+      "id": 5, "title": "WAN Link Speed", "type": "stat",
+      "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "none", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "Mbits", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "targets": [{ "expr": "ifHighSpeed{job=\"snmp_exporter_gateway\",ifName=\"eth0\"}", "legendFormat": "eth0", "refId": "A" }]
+    },
+    {
+      "id": 6, "title": "Flow Decode Errors/s", "type": "stat",
+      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "graphMode": "area", "colorMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 0.01 } ] } }, "overrides": [] },
+      "targets": [{ "expr": "sum(netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_errors_total_errors_persec_average{job=\"netdata\"}) or vector(0)", "legendFormat": "errors", "refId": "A" }]
+    },
+
+    { "id": 101, "type": "row", "title": "Interface Traffic", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }, "panels": [] },
+    {
+      "id": 7, "title": "Inbound by Interface", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 35, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "rate(ifHCInOctets{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*|bond0|wifi0|wifi1|wifi2\"}[5m]) * 8", "legendFormat": "{{ifName}}", "refId": "A" }]
+    },
+    {
+      "id": 8, "title": "Outbound by Interface", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 35, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "rate(ifHCOutOctets{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*|bond0|wifi0|wifi1|wifi2\"}[5m]) * 8", "legendFormat": "{{ifName}}", "refId": "A" }]
+    },
+    {
+      "id": 9, "title": "Unicast Packets", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "pps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 20, "gradientMode": "hue", "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        { "expr": "rate(ifHCInUcastPkts{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*\"}[5m])", "legendFormat": "{{ifName}} in", "refId": "A" },
+        { "expr": "rate(ifHCOutUcastPkts{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*\"}[5m])", "legendFormat": "{{ifName}} out", "refId": "B" }
+      ]
+    },
+    {
+      "id": 10, "title": "Errors & Discards", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 20, "gradientMode": "hue", "showPoints": "never" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "targets": [
+        { "expr": "rate(ifInErrors{job=\"snmp_exporter_gateway\"}[5m])", "legendFormat": "{{ifName}} in-err", "refId": "A" },
+        { "expr": "rate(ifOutErrors{job=\"snmp_exporter_gateway\"}[5m])", "legendFormat": "{{ifName}} out-err", "refId": "B" },
+        { "expr": "rate(ifInDiscards{job=\"snmp_exporter_gateway\"}[5m])", "legendFormat": "{{ifName}} in-disc", "refId": "C" },
+        { "expr": "rate(ifOutDiscards{job=\"snmp_exporter_gateway\"}[5m])", "legendFormat": "{{ifName}} out-disc", "refId": "D" }
+      ]
+    },
+
+    { "id": 102, "type": "row", "title": "Interface Status Timeline", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 }, "panels": [] },
+    {
+      "id": 11, "title": "Oper Status by Interface (green=up, red=down)", "type": "state-timeline",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 26 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "showValue": "never", "rowHeight": 0.8, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "fieldConfig": { "defaults": { "custom": { "fillOpacity": 80, "lineWidth": 0 }, "mappings": [{ "type": "value", "options": { "1": { "text": "up", "color": "green" }, "2": { "text": "down", "color": "red" }, "3": { "text": "testing", "color": "yellow" }, "6": { "text": "notPresent", "color": "dark-gray" }, "7": { "text": "lowerDown", "color": "orange" } } }] }, "overrides": [] },
+      "targets": [{ "expr": "ifOperStatus{job=\"snmp_exporter_gateway\",ifName=~\"eth.*|br.*|bond0|switch.*|wifi[0-9]\"}", "legendFormat": "{{ifName}}", "refId": "A" }]
+    },
+
+    { "id": 103, "type": "row", "title": "NetFlow Collector (goflow2 via relay :2057)", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 }, "panels": [] },
+    {
+      "id": 12, "title": "Collector Ingest", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 37 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 40, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        { "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_traffic_bytes_total_bytes_persec_average{job=\"netdata\"}", "legendFormat": "bytes/s from {{remote_ip}}", "refId": "A" }
+      ]
+    },
+    {
+      "id": 13, "title": "Flow Records by FlowSet Type", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 37 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 60, "gradientMode": "hue", "stacking": { "mode": "normal" }, "barAlignment": 0 } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_flowset_records_total_records_persec_average{job=\"netdata\"}", "legendFormat": "{{type}}", "refId": "A" }]
+    },
+    {
+      "id": 14, "title": "Flow Packet Size", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 46 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 25, "gradientMode": "opacity", "showPoints": "never" } }, "overrides": [] },
+      "targets": [{ "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_traffic_size_bytes_bytes_persec_average{job=\"netdata\"}", "legendFormat": "p{{dimension}}", "refId": "A" }]
+    },
+    {
+      "id": 15, "title": "Processing Delay & Templates", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 46 },
+      "datasource": { "type": "prometheus", "uid": "bfx714adccgsga" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 20, "gradientMode": "hue", "showPoints": "never" } }, "overrides": [{ "matcher": { "id": "byName", "options": "templates/s" }, "properties": [{ "id": "unit", "value": "short" }] }] },
+      "targets": [
+        { "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_delay_seconds_seconds_average{job=\"netdata\"}", "legendFormat": "delay", "refId": "A" },
+        { "expr": "netdata_prometheus_goflow2_netflow_goflow2_flow_process_nf_templates_total_templates_persec_average{job=\"netdata\"}", "legendFormat": "templates/s", "refId": "B" }
+      ]
+    }
+  ]
+}
