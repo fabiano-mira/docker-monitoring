@@ -220,6 +220,11 @@ Everything is configured to auto-start (containers via `restart: unless-stopped`
 ```
 It validates the Docker daemon and all 12 containers, the three native components, UDP listeners (2055/2057), every HTTP endpoint, Prometheus scrape targets, Grafana datasource health, and end-to-end data freshness in both NetFlow pipelines. Exits non-zero if anything fails, with a fix-hint per failed check.
 
+On machines where a compose override renames Grafana or moves its port (e.g. `docker-compose.local.yml` publishing it on 3002 as `grafana-monitoring` to dodge a pre-existing container on 3000), point the script at the right instance — otherwise the container/HTTP checks can false-pass against the unrelated Grafana while the datasource checks false-fail:
+```zsh
+GRAFANA_URL=http://localhost:3002 GRAFANA_CONTAINER=grafana-monitoring ./check-health.sh
+```
+
 ### Configuring ntopng's Timeseries driver (InfluxDB)
 By default ntopng stores historical timeseries locally as RRD files. This stack instead points it at the dedicated `influxdb-ntopng` container, via the web UI (Preferences → Timeseries): **Timeseries Driver**: `InfluxDB 1.x`, **InfluxDB URL**: `http://influxdb-ntopng:8086`, **InfluxDB Database**: `ntopng`, authentication disabled. Under the hood this sets Redis keys read by `ts_utils_core.lua`/`influxdb.lua`:
 - `ntopng.prefs.timeseries_driver` = `influxdb`

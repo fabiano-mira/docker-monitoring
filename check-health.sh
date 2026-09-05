@@ -14,11 +14,17 @@
 PASS=0
 FAIL=0
 
+# Overridable for machines where Grafana runs under a different name/port
+# (e.g. a docker-compose.local.yml renames it to avoid a port conflict):
+#   GRAFANA_URL=http://localhost:3002 GRAFANA_CONTAINER=grafana-monitoring ./check-health.sh
+GRAFANA_URL="${GRAFANA_URL:-http://localhost:3000}"
+GRAFANA_CONTAINER="${GRAFANA_CONTAINER:-grafana}"
+
 ok()   { printf "  \033[32m✔\033[0m %s\n" "$1"; PASS=$((PASS+1)); }
 bad()  { printf "  \033[31m✘\033[0m %s\n" "$1"; FAIL=$((FAIL+1)); }
 section() { printf "\n\033[1m== %s ==\033[0m\n" "$1"; }
 
-EXPECTED_CONTAINERS=(grafana prometheus loki promtail influxdb influxdb-ntopng telegraf netflow2ng ntopng redis-ntopng node_exporter snmp_exporter)
+EXPECTED_CONTAINERS=($GRAFANA_CONTAINER prometheus loki promtail influxdb influxdb-ntopng telegraf netflow2ng ntopng redis-ntopng node_exporter snmp_exporter)
 
 section "Docker"
 if ! docker info >/dev/null 2>&1; then
@@ -64,7 +70,7 @@ done
 section "HTTP endpoints"
 # name|url|acceptable_codes (regex)
 endpoints=(
-  "grafana|http://localhost:3000/api/health|200"
+  "grafana|$GRAFANA_URL/api/health|200"
   "prometheus|http://localhost:9090/-/healthy|200"
   "loki|http://localhost:3100/ready|200|503"          # 503 w/ 'waiting after ready' is a benign startup hold
   "influxdb-v2|http://localhost:8086/health|200"
@@ -112,7 +118,7 @@ fi
 
 section "Grafana datasources"
 for uid in influxdb-netflow influxdb-ntopng infinity-ntopng; do
-  ds_status=$(curl -s -u admin:admin --max-time 10 -X POST "http://localhost:3000/api/datasources/uid/$uid/health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','ERR'))" 2>/dev/null)
+  ds_status=$(curl -s -u admin:admin --max-time 10 -X POST "$GRAFANA_URL/api/datasources/uid/$uid/health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','ERR'))" 2>/dev/null)
   if [ "$ds_status" = "OK" ]; then
     ok "datasource $uid"
   else
