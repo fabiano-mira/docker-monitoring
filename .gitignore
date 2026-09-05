@@ -1,2 +1,7 @@
 .DS_Store
 *.log
+
+# Machine-local compose overrides. Not shared, since each host has different
+# port/name conflicts. Pass explicitly: docker compose -f docker-compose.yml -f docker-compose.local.yml ...
+docker-compose.local.yml
+docker-compose.override.yml
