@@ -221,9 +221,19 @@ Everything is configured to auto-start (containers via `restart: unless-stopped`
 It validates the Docker daemon and all 12 containers, the three native components, UDP listeners (2055/2057), every HTTP endpoint, Prometheus scrape targets, Grafana datasource health, and end-to-end data freshness in both NetFlow pipelines. Exits non-zero if anything fails, with a fix-hint per failed check.
 
 ### Configuring ntopng's Timeseries driver (InfluxDB)
-By default ntopng stores historical timeseries locally as RRD files. This stack instead points it at the dedicated `influxdb-ntopng` container, via the web UI (Preferences → Timeseries): **Timeseries Driver**: `InfluxDB 1.x`, **InfluxDB URL**: `http://influxdb-ntopng:8086`, **InfluxDB Database**: `ntopng`, authentication disabled. Under the hood this sets two Redis keys read by `ts_utils_core.lua`/`influxdb.lua`:
+By default ntopng stores historical timeseries locally as RRD files. This stack instead points it at the dedicated `influxdb-ntopng` container, via the web UI (Preferences → Timeseries): **Timeseries Driver**: `InfluxDB 1.x`, **InfluxDB URL**: `http://influxdb-ntopng:8086`, **InfluxDB Database**: `ntopng`, authentication disabled. Under the hood this sets Redis keys read by `ts_utils_core.lua`/`influxdb.lua`:
 - `ntopng.prefs.timeseries_driver` = `influxdb`
 - `ntopng.prefs.ts_post_data_url` = `http://influxdb-ntopng:8086`
+- `ntopng.prefs.influx_dbname` = `ntopng`
+
+**CLI alternative (scriptable, verified):** the same result without the UI — set the Redis keys directly and restart ntopng:
+```zsh
+docker exec redis-ntopng redis-cli SET ntopng.prefs.timeseries_driver influxdb
+docker exec redis-ntopng redis-cli SET ntopng.prefs.ts_post_data_url http://influxdb-ntopng:8086
+docker exec redis-ntopng redis-cli SET ntopng.prefs.influx_dbname ntopng
+docker restart ntopng
+```
+Note the URL must be the Docker-network address `http://influxdb-ntopng:8086`, not `http://localhost:8087` — `localhost` inside the ntopng container does not reach the InfluxDB container, and a wrong URL fails silently (driver stays effectively on RRD).
 
 These preferences live in `redis-ntopng` (not a file in this repo), so they aren't provisioned automatically like Grafana's dashboards and must be re-applied if the `redis-ntopng` volume is ever wiped. ntopng caches its active timeseries driver in memory, so a container restart (`docker restart ntopng`) is needed after changing it for the change to take effect.
 
