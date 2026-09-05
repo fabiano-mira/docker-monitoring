@@ -104,7 +104,11 @@ services:
       - monitoring
 
   netflow2ng:
-    image: synfinatic/netflow2ng:latest
+    # Built locally from netflow2ng-build/ (upstream source + IPFIX mapping
+    # patch from PR #162) because the published image sends 0-byte flows to
+    # ntopng for IPFIX exports — see "IPFIX vs NetFlow v9" in Known limitations.
+    build: ./netflow2ng-build
+    image: netflow2ng:ipfix-patched
     container_name: netflow2ng
     restart: unless-stopped
     command:
