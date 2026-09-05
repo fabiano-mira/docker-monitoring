@@ -86,11 +86,57 @@ docker compose up -d
 
 This brings up all 12 containers. Grafana auto-provisions its data sources and dashboards from files on every start — no manual UI setup is required.
 
-The NetFlow relay LaunchAgent (one-time install for the native relay component):
+### Installing the native NetFlow components (one-time)
+`goflow2` and `netflow-relay.py` run natively on the host, not in Docker, since they need direct UDP socket access. Both are managed as LaunchAgents so they survive reboots.
+
+**1. Install the goflow2 binary** (pre-built release, no Go toolchain required):
 ```zsh
+mkdir -p ~/bin
+curl -fsSL -o ~/bin/goflow2 \
+  https://github.com/netsampler/goflow2/releases/download/v2.2.6/goflow2-2.2.6-darwin-amd64
+chmod +x ~/bin/goflow2
+```
+Use the `darwin-arm64` asset instead on Apple Silicon Macs.
+
+**2. Install both LaunchAgents:**
+```zsh
+mkdir -p ~/Library/Logs/goflow2 ~/Library/Logs/netflow-relay
+cp launchagents/com.netsampler.goflow2.plist ~/Library/LaunchAgents/
 cp launchagents/com.netmon.netflow-relay.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.netsampler.goflow2.plist
 launchctl load ~/Library/LaunchAgents/com.netmon.netflow-relay.plist
 ```
+
+**3. Verify the local pipeline** — this works even before the router is configured, using goflow2/netflow2ng's own Prometheus counters. A harmless non-flow test packet will always fail to decode, but the packet-received counter still proves the relay's fan-out reaches both collectors:
+```zsh
+launchctl list | grep -iE 'goflow2|netflow-relay'  # both should show a PID and exit status 0
+lsof -nP -iUDP:2055,2057                           # goflow2 on 2055, python (relay) on 2057
+curl -s http://localhost:8080/__health             # goflow2 health -> "OK"
+echo probe | nc -u -w1 127.0.0.1 2057               # send a test datagram through the relay
+curl -s http://localhost:8080/metrics | grep goflow2_flow_traffic_packets_total  # native goflow2 received it
+curl -s http://localhost:8091/metrics | grep goflow2_flow_traffic_packets_total  # netflow2ng received it too
+```
+Both counters incrementing confirms the relay is correctly duplicating UDP traffic to both collectors, independent of whether the router is sending real flows yet.
+
+### Configuring the UniFi Dream Router for NetFlow export
+Point the router's NetFlow/IPFIX exporter at this Mac's **current LAN IP** on **port 2057** (the relay — never point it directly at `2055` or `2056`, since only one collector would then receive data).
+1. Find this Mac's current LAN IP (it can change on DHCP renewal — see Known limitations):
+   ```zsh
+   ipconfig getifaddr en0 || ipconfig getifaddr en1
+   ```
+2. Check the UniFi Network app first: **Settings → Traffic & Device Identification** or **Settings → System → Advanced**. If a NetFlow/IPFIX toggle exists there for your firmware version, prefer it — UI-set config persists across firmware upgrades, unlike step 3.
+3. If no UI option exists, SSH into the router and locate its flow-exporter config (path varies by UDR/UDM firmware, commonly under the `ubios-udapi-server` or `vnstatd` flow-export settings):
+   ```zsh
+   ssh root@10.9.1.1
+   ```
+4. Set the exporter's destination to `<mac-lan-ip>:2057`, protocol NetFlow v9 (or IPFIX if v9 isn't offered — this repo's dashboards and Promtail parsing assume the v9 field layout).
+5. SSH-applied config on UniFi OS gateways is often **not persistent** across firmware upgrades/reboots unless set via the app UI or an `on_boot.d` script — re-check after any firmware update.
+6. Confirm real flows are arriving:
+   ```zsh
+   tail -f ~/Library/Logs/goflow2/flows.log
+   curl -s http://localhost:8091/metrics | grep goflow2_flow_traffic_packets_total
+   ```
+   The counter's `remote_ip` label should show the router's LAN IP (`10.9.1.1`) once it's exporting to the right target.
 
 Access points:
 - Grafana: http://localhost:3000 (`admin` / `admin` — change on first login)
@@ -115,6 +161,7 @@ Access points:
 | `grafana/dashboards/*.json` | The 13 dashboards: 4 "Control Center" dashboards (primary) plus the 9 original single-source dashboards kept as legacy/backup (source of truth — edit these, not via UI, for changes to survive a volume wipe) |
 | `scripts/netflow-relay.py` | UDP fan-out relay (LaunchAgent `com.netmon.netflow-relay.plist`) duplicating the router's single NetFlow export to both goflow2 and netflow2ng |
 | `launchagents/com.netmon.netflow-relay.plist` | Version-controlled copy of the relay's LaunchAgent definition — copy to `~/Library/LaunchAgents/` and `launchctl load` it (see Deployment) |
+| `launchagents/com.netsampler.goflow2.plist` | Version-controlled copy of goflow2's LaunchAgent definition — copy to `~/Library/LaunchAgents/` and `launchctl load` it (see Deployment) |
 | `check-health.sh` | Post-reboot verification: containers, LaunchAgents, UDP listeners, HTTP endpoints, Prometheus targets, Grafana datasources, data freshness. Exit 0 = all healthy |
 
 ### Dashboards
