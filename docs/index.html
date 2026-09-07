@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>docker-monitoring — local observability stack</title>
+<meta name="description" content="A local observability stack for macOS host metrics, a UniFi Dream Router (SNMP + NetFlow/IPFIX), and general infrastructure monitoring — built on Prometheus, Grafana, Loki, InfluxDB, and ntopng.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+</head>
+<body>
+
+<a class="skip" href="#overview">Skip to content</a>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Self-hosted observability</p>
+    <h1>docker-monitoring</h1>
+    <p class="tagline">
+      A local observability stack for macOS host metrics, a UniFi Dream Router
+      (SNMP&nbsp;+&nbsp;NetFlow/IPFIX), and general infrastructure monitoring — built on
+      <strong>Prometheus</strong>, <strong>Grafana</strong>, <strong>Loki</strong>,
+      <strong>InfluxDB</strong>, and <strong>ntopng</strong>.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/fabiano-mira/docker-monitoring">View on GitHub</a>
+      <a class="btn" href="#quickstart">Quick start</a>
+    </div>
+    <ul class="stats">
+      <li><span class="num">12</span><span class="lbl">containers</span></li>
+      <li><span class="num">13</span><span class="lbl">dashboards</span></li>
+      <li><span class="num">3</span><span class="lbl">native components</span></li>
+      <li><span class="num">2</span><span class="lbl">NetFlow pipelines</span></li>
+    </ul>
+  </div>
+</header>
+
+<nav class="nav">
+  <div class="wrap">
+    <a href="#overview">Overview</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#services">Services</a>
+    <a href="#dashboards">Dashboards</a>
+    <a href="#quickstart">Quick start</a>
+    <a href="#endpoints">Endpoints</a>
+    <a href="#limitations">Limitations</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<section id="overview">
+  <h2>Overview</h2>
+  <p>
+    The stack combines a Docker Compose deployment with three components that run natively on
+    macOS, because they need direct host and network access that containers on Docker Desktop
+    cannot get.
+  </p>
+  <div class="cards">
+    <article class="card">
+      <h3>Host metrics</h3>
+      <p>
+        <strong>Netdata</strong> runs natively via Homebrew and reports real macOS CPU, RAM, disk,
+        GPU and battery, plus an SNMP collector polling the router. Prometheus scrapes it over
+        <code>/allmetrics</code>.
+      </p>
+    </article>
+    <article class="card">
+      <h3>Router telemetry</h3>
+      <p>
+        A UniFi Dream Router at <code>10.9.1.1</code> is polled over SNMPv2c by
+        <code>snmp_exporter</code> for standard IF-MIB counters, and exports NetFlow/IPFIX to the
+        Mac for per-flow analysis.
+      </p>
+    </article>
+    <article class="card">
+      <h3>Dual flow pipelines</h3>
+      <p>
+        Two collection paths run side by side: <code>goflow2</code> → Loki/InfluxDB v2 for
+        queryable per-flow records, and <code>netflow2ng</code> → <code>ntopng</code> for a live
+        ZMQ flow stream with its own timeseries store.
+      </p>
+    </article>
+    <article class="card">
+      <h3>Provisioned as code</h3>
+      <p>
+        Grafana auto-provisions data sources and every dashboard from files on each start. No
+        manual UI setup, and nothing is lost when a volume is wiped.
+      </p>
+    </article>
+  </div>
+</section>
+
+<section id="architecture">
+  <h2>Architecture</h2>
+  <p>
+    The router only supports a single NetFlow export target, so it points at a small native relay
+    that duplicates each datagram to both collectors.
+  </p>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart LR
+  subgraph Host["macOS Host (native)"]
+    Netdata["Netdata :19999<br/>host metrics + SNMP poller"]
+    goflow2["goflow2 :2055/:8080<br/>NetFlow/IPFIX collector"]
+    FlowLog["flows.log<br/>(JSON per-flow records)"]
+    goflow2 --> FlowLog
+  end
+
+  Router["UniFi Dream Router<br/>10.9.1.1"] -- "SNMP v2c" --> Netdata
+  Router -- "NetFlow/IPFIX :2057" --> Relay["netflow-relay.py<br/>(native, LaunchAgent)"]
+  Relay -- ":2055" --> goflow2
+  Relay -- ":2056" --> netflow2ng
+  SNMPExp["snmp_exporter :9116"] -- "SNMP v2c poll" --> Router
+
+  subgraph Docker["Docker Compose stack"]
+    Prometheus["Prometheus :9090"]
+    Grafana["Grafana :3000"]
+    Loki["Loki :3100"]
+    Promtail["Promtail"]
+    InfluxDB["InfluxDB (v2) :8086<br/>bucket: netflow"]
+    Telegraf["Telegraf"]
+    NodeExp["node_exporter :9100"]
+    netflow2ng["netflow2ng :2056/:8091"]
+    ntopng["ntopng :3001"]
+    RedisNtopng["redis-ntopng"]
+    InfluxNtopng["InfluxDB (v1.8) :8087<br/>db: ntopng"]
+  end
+
+  Netdata -- "scrape /allmetrics" --> Prometheus
+  SNMPExp -- "scrape /snmp" --> Prometheus
+  NodeExp -- "scrape" --> Prometheus
+  FlowLog -- "tail" --> Promtail --> Loki
+  FlowLog -- "tail (poll)" --> Telegraf --> InfluxDB
+  netflow2ng -- "ZMQ tcp://5556" --> ntopng
+  ntopng --> RedisNtopng
+  ntopng -- "timeseries write" --> InfluxNtopng
+
+  Prometheus --> Grafana
+  Loki --> Grafana
+  InfluxDB --> Grafana
+    </pre>
+  </div>
+
+  <h3>Native components</h3>
+  <p>Three pieces run outside Docker, since they need direct macOS/network access:</p>
+  <dl class="deflist">
+    <dt>Netdata</dt>
+    <dd>
+      Homebrew, config in <code>/opt/homebrew/etc/netdata/</code>. Real host metrics plus the
+      <code>go.d/snmp</code> collector polling the router.
+    </dd>
+    <dt>goflow2</dt>
+    <dd>
+      <code>~/bin/goflow2</code>, managed by LaunchAgent
+      <code>com.netsampler.goflow2.plist</code>. Receives NetFlow/IPFIX on UDP <code>2055</code>,
+      writes JSON records to <code>~/Library/Logs/goflow2/flows.log</code>, exposes Prometheus
+      metrics on <code>:8080</code>.
+    </dd>
+    <dt>netflow-relay.py</dt>
+    <dd>
+      <code>scripts/netflow-relay.py</code>, managed by LaunchAgent
+      <code>com.netmon.netflow-relay.plist</code>. Receives the router's single export on UDP
+      <code>2057</code> and fans each packet out to goflow2 (<code>2055</code>) and netflow2ng
+      (<code>2056</code>).
+    </dd>
+  </dl>
+</section>
+
+<section id="services">
+  <h2>Services</h2>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Service</th><th>Image</th><th>Port</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>prometheus</code></td><td><code>prom/prometheus</code></td><td>9090</td><td>Scrapes Netdata, node_exporter, snmp_exporter</td></tr>
+        <tr><td><code>grafana</code></td><td><code>grafana/grafana</code></td><td>3000</td><td>Dashboards, provisioned from files</td></tr>
+        <tr><td><code>node_exporter</code></td><td><code>prom/node-exporter</code></td><td>9100</td><td>Host metrics — <em>reports Docker Desktop's Linux VM, not real macOS</em></td></tr>
+        <tr><td><code>snmp_exporter</code></td><td><code>prom/snmp-exporter</code></td><td>9116</td><td>Standard IF-MIB metrics for the router via SNMPv2c</td></tr>
+        <tr><td><code>loki</code></td><td><code>grafana/loki</code></td><td>3100</td><td>Log storage for raw flow records</td></tr>
+        <tr><td><code>promtail</code></td><td><code>grafana/promtail</code></td><td>9080</td><td>Tails <code>flows.log</code>, ships to Loki</td></tr>
+        <tr><td><code>influxdb</code></td><td><code>influxdb:2</code></td><td>8086</td><td>Per-flow time series (bucket <code>netflow</code>, org <code>netmon</code>)</td></tr>
+        <tr><td><code>telegraf</code></td><td><code>telegraf</code></td><td>—</td><td>Tails <code>flows.log</code>, parses JSON, writes points to InfluxDB</td></tr>
+        <tr><td><code>netflow2ng</code></td><td><code>synfinatic/netflow2ng</code></td><td>2056/udp, 8091</td><td>Receives NetFlow/IPFIX, republishes flows to ntopng over ZMQ</td></tr>
+        <tr><td><code>ntopng</code></td><td><code>ntop/ntopng</code></td><td>3001</td><td>Live traffic dashboard fed by netflow2ng</td></tr>
+        <tr><td><code>redis-ntopng</code></td><td><code>redis:alpine</code></td><td>—</td><td>Dedicated Redis for ntopng's cache and preferences</td></tr>
+        <tr><td><code>influxdb-ntopng</code></td><td><code>influxdb:1.8</code></td><td>8087</td><td>Dedicated InfluxDB 1.x for ntopng's timeseries driver (db <code>ntopng</code>)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="dashboards">
+  <h2>Dashboards</h2>
+  <h3>Control Center <span class="pill">primary</span></h3>
+  <p>
+    Four consolidated dashboards merging the legacy per-source views, using modern visualizations:
+    smooth gradient timeseries, gauges, bar gauges, donut charts, state timelines and a node graph.
+  </p>
+  <div class="cards">
+    <article class="card">
+      <h4>System Health</h4>
+      <p class="src">Prometheus (Netdata + node_exporter)</p>
+      <p>KPI gauges for CPU, RAM, disk, GPU and battery; stacked gradient CPU/RAM, load, swap, disk space and IO, en0 throughput, TCP packets, Docker VM row.</p>
+      <p class="uid"><code>/d/cc-system-health</code></p>
+    </article>
+    <article class="card">
+      <h4>Network &amp; Router</h4>
+      <p class="src">Prometheus (SNMP + goflow2 via Netdata)</p>
+      <p>Router health stats, per-interface in/out gradient traffic, packets, errors and discards, interface oper-status state timeline, collector ingest/flowsets/templates/delay.</p>
+      <p class="uid"><code>/d/cc-network-router</code></p>
+    </article>
+    <article class="card">
+      <h4>Flow Analytics</h4>
+      <p class="src">InfluxDB v2 (Flux) + Loki + InfluxDB ntopng (InfluxQL)</p>
+      <p>Hosts and flows KPIs, bytes by port, protocol donut, L4 bytes, top talkers, ASN and country traffic, interface pairs, TCP anomalies, engine load.</p>
+      <p class="uid"><code>/d/cc-netflow-analytics</code></p>
+    </article>
+    <article class="card">
+      <h4>Live Flows</h4>
+      <p class="src">Infinity (ntopng REST) + Prometheus + Loki + InfluxDB ntopng</p>
+      <p>Live node graph of host-to-host flows with resolved names, top hosts by live throughput, gradient ingest rate, live flow log stream.</p>
+      <p class="uid"><code>/d/cc-live-flows</code></p>
+    </article>
+  </div>
+
+  <h3>Legacy <span class="pill muted">kept as backup</span></h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Dashboard</th><th>Data source</th><th>Content</th></tr></thead>
+      <tbody>
+        <tr><td>Netdata Host Metrics (macOS)</td><td>Prometheus</td><td>CPU/RAM/load quick overview</td></tr>
+        <tr><td>Netdata Full (macOS Host)</td><td>Prometheus</td><td>CPU, memory, swap, disk, network, GPU, battery</td></tr>
+        <tr><td>Node Exporter Full</td><td>Prometheus</td><td>Community dashboard 1860 — reflects the Docker Desktop VM</td></tr>
+        <tr><td>SNMP Exporter · Gateway</td><td>Prometheus</td><td>Standard IF-MIB metrics via <code>snmp_exporter</code></td></tr>
+        <tr><td>NetFlow/IPFIX Live (Router)</td><td>Prometheus</td><td>Aggregate goflow2 counters via Netdata's Prometheus proxy</td></tr>
+        <tr><td>NetFlow Rich Detail</td><td>Loki</td><td>Per-flow LogQL series by port/IP/interface plus raw log stream</td></tr>
+        <tr><td>NetFlow (InfluxDB)</td><td>InfluxDB v2 / Flux</td><td>Time-series panels grouped by port/IP/interface</td></tr>
+        <tr><td>ntopng · Flows, Hosts &amp; Traffic</td><td>InfluxDB v1 / InfluxQL</td><td>Host and flow counts, bytes by L4 protocol, ASN, country, TCP anomalies</td></tr>
+        <tr><td>ntopng · Live Hosts (Names)</td><td>Infinity (ntopng REST)</td><td>Active hosts with resolved names, IP, bytes, flows, throughput</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="quickstart">
+  <h2>Quick start</h2>
+  <h3>Prerequisites</h3>
+  <ul>
+    <li>Docker Desktop (context <code>desktop-linux</code>)</li>
+    <li>Homebrew with <code>netdata</code> running (<code>brew services start netdata</code>)</li>
+    <li><code>goflow2</code> running as a LaunchAgent, listening on UDP <code>2055</code></li>
+    <li><code>scripts/netflow-relay.py</code> running as a LaunchAgent, listening on UDP <code>2057</code></li>
+    <li>Router exporting SNMP (v2c, community <code>public</code>) and NetFlow/IPFIX to this Mac's LAN IP on port <code>2057</code></li>
+  </ul>
+
+  <h3>Deploy</h3>
+  <pre class="code"><code>git clone https://github.com/fabiano-mira/docker-monitoring.git
+cd docker-monitoring
+docker compose up -d</code></pre>
+  <p>
+    This brings up all 12 containers. Grafana provisions its data sources and dashboards from
+    files on every start, so no manual UI setup is required.
+  </p>
+
+  <h3>Install the NetFlow relay (one-time)</h3>
+  <pre class="code"><code>cp launchagents/com.netmon.netflow-relay.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.netmon.netflow-relay.plist</code></pre>
+
+  <h3>Verify after a reboot</h3>
+  <pre class="code"><code>./check-health.sh</code></pre>
+  <p>
+    Validates the Docker daemon and all 12 containers, the three native components, UDP listeners
+    on 2055/2057, every HTTP endpoint, Prometheus scrape targets, Grafana datasource health, and
+    end-to-end data freshness in both NetFlow pipelines. Exits non-zero with a fix hint per failed
+    check.
+  </p>
+</section>
+
+<section id="endpoints">
+  <h2>Access points</h2>
+  <p class="note">These are local endpoints on the machine running the stack, not public URLs.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Service</th><th>URL</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Grafana</td><td><code>http://localhost:3000</code></td><td><code>admin</code>/<code>admin</code> — change on first login</td></tr>
+        <tr><td>Prometheus</td><td><code>http://localhost:9090</code></td><td>—</td></tr>
+        <tr><td>InfluxDB (v2, netflow)</td><td><code>http://localhost:8086</code></td><td>Web UI</td></tr>
+        <tr><td>InfluxDB (v1.8, ntopng)</td><td><code>http://localhost:8087</code></td><td>API only, unauthenticated</td></tr>
+        <tr><td>Netdata</td><td><code>http://localhost:19999</code></td><td>Native, not containerized</td></tr>
+        <tr><td>ntopng</td><td><code>http://localhost:3001</code></td><td>Login disabled</td></tr>
+        <tr><td>netflow2ng metrics</td><td><code>http://localhost:8091/metrics</code></td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="limitations">
+  <h2>Known limitations</h2>
+  <ul class="gotchas">
+    <li><strong>node_exporter reflects Docker Desktop's LinuxKit VM</strong>, not the real Mac. Use the Netdata-backed dashboards for genuine host metrics.</li>
+    <li><strong>ICMP ping sub-checks fail</strong> in Netdata's SNMP collector — macOS restricts raw ICMP sockets for unprivileged processes. SNMP metric collection is unaffected.</li>
+    <li><strong>goflow2 counters reset on process restart.</strong> If flow dashboards go empty, check <code>~/Library/Logs/goflow2/stderr.log</code> and confirm the router still targets this Mac's current LAN IP.</li>
+    <li><strong>Telegraf requires <code>watch_method = "poll"</code></strong> — inotify events don't reliably cross the Docker Desktop bind-mount bridge.</li>
+    <li><strong>ntopng only supports InfluxDB 1.x</strong>, so a separate <code>influxdb-ntopng</code> container exists purely for its timeseries data.</li>
+    <li><strong>ntopng's <code>--local-networks</code> only affects host classification</strong>, not which flows are received.</li>
+    <li><strong>ntopng preferences live in <code>redis-ntopng</code></strong>, not in version control, and must be re-applied if that volume is wiped.</li>
+    <li><strong><code>--disable-login</code> needs an explicit <code>0</code>/<code>1</code> argument</strong>, or ntopng's parser swallows the next list item in <code>docker-compose.yml</code>.</li>
+    <li><strong>The UniFi router supports a single NetFlow destination</strong>, which is why <code>netflow-relay.py</code> fans the export out to both collectors.</li>
+    <li><strong>The ntopng datasource uses InfluxQL, not Flux</strong> — panel targets use <code>{"query": "SELECT ...", "rawQuery": true}</code>.</li>
+    <li><strong>ntopng does not write per-host timeseries</strong> (e.g. <code>host:traffic</code>), only interface-level aggregates. Use the Infinity-backed Live Hosts dashboard instead.</li>
+    <li><strong>Infinity queries require <code>"parser": "backend"</code></strong>, or <code>columns</code> selectors silently return an empty table.</li>
+    <li><strong>The Live Flows node graph can transiently warn about missing nodes</strong>, since nodes and edges come from two separate ntopng API calls. A refresh clears it.</li>
+  </ul>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>
+      <a href="https://github.com/fabiano-mira/docker-monitoring">fabiano-mira/docker-monitoring</a>
+      · Full details in the
+      <a href="https://github.com/fabiano-mira/docker-monitoring/blob/main/README.md">README</a>
+    </p>
+  </div>
+</footer>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      background: '#12161f',
+      primaryColor: '#1b2130',
+      primaryTextColor: '#e6ebf5',
+      primaryBorderColor: '#2f9e6e',
+      lineColor: '#6b7793',
+      fontFamily: 'ui-sans-serif, -apple-system, system-ui, sans-serif'
+    }
+  });
+</script>
+
+</body>
+</html>
