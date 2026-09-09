@@ -1,0 +1,65 @@
+# Copilot Studio topic — deterministic "top talkers" answer.
+#
+# Paste into Copilot Studio → Topics → Add a topic → From blank → ... → Open
+# code editor, and replace the contents.
+#
+# Adjust `connectionReference` to the name Copilot Studio gives your imported
+# connector (Settings → Generative AI → Actions shows it; it usually looks like
+# shared_<connectorname>-<suffix>).
+#
+# A generative agent with the connector's actions enabled will answer these
+# questions without any topic at all. Use this topic when you want the wording
+# and the parameters fixed rather than model-chosen.
+
+kind: AdaptiveDialog
+beginDialog:
+  kind: OnRecognizedIntent
+  id: main
+  intent:
+    displayName: Top talkers
+    triggerQueries:
+      - who is using the bandwidth
+      - top talkers
+      - which device is using the most data
+      - what is hogging my network
+      - busiest device right now
+
+  actions:
+    - kind: InvokeConnectorAction
+      id: getTopTalkers
+      connectionReference: shared_ntopngnetworkanalyzer
+      connectionProperties:
+        mode: Invoker
+      operationId: GetTopTalkers
+      inputs:
+        binding:
+          limit: 5
+          order_by: throughput
+          scope: local
+      output:
+        binding:
+          Topic.Result: =Value
+
+    - kind: ConditionGroup
+      id: hasResults
+      conditions:
+        - id: someHosts
+          condition: =Topic.Result.count > 0
+          actions:
+            - kind: SendActivity
+              id: replyWithHosts
+              activity: |-
+                {Topic.Result.summary}
+
+                {Concat(
+                  ForAll(
+                    Topic.Result.hosts,
+                    "- " & ThisRecord.name & " — " &
+                    Text(Round(ThisRecord.throughput_bps / 1000000, 1)) & " Mbps, " &
+                    Text(ThisRecord.active_flows) & " active flows" & Char(10)
+                  )
+                )}
+      elseActions:
+        - kind: SendActivity
+          id: replyEmpty
+          activity: No hosts are currently active on the monitored interface.

@@ -1,0 +1,12 @@
+{
+  "connectorId": "",
+  "environment": "",
+  "apiProperties": "apiProperties.json",
+  "apiDefinition": "apiDefinition.swagger.json",
+  "icon": "icon.png",
+  "scriptFile": "",
+  "powerAppsUrl": "https://api.powerapps.com",
+  "powerAppsApiVersion": "2016-11-01",
+  "flowUrl": "https://api.flow.microsoft.com",
+  "flowApiVersion": "2016-11-01"
+}
